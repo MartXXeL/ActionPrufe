@@ -1,5 +1,5 @@
 [project]
-name = "actionproof"
+name = "actionprufe"
 version = "0.1.0"
 description = "Verifica que cada accion de navegador hizo lo que pretendia, y la deshace si no"
 readme = "README.md"
@@ -22,7 +22,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/actionproof"]
+packages = ["src/actionprufe"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration"]

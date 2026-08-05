@@ -1,4 +1,4 @@
-from actionproof import diff as diffing
+from actionprufe import diff as diffing
 from builders import node, snapshot
 
 

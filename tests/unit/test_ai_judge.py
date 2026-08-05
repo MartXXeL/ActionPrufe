@@ -1,8 +1,8 @@
 import pytest
 
-from actionproof import diff as diffing
-from actionproof.ai_judge import build_prompt, read_verdict
-from actionproof.types import ActionSpec, NodeKey
+from actionprufe import diff as diffing
+from actionprufe.ai_judge import build_prompt, read_verdict
+from actionprufe.types import ActionSpec, NodeKey
 from builders import node, snapshot
 
 

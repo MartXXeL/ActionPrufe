@@ -1,11 +1,12 @@
-# ActionProof
+# ActionPrufe — libreria de verificacion de acciones de navegador
 
 [![Tests](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml/badge.svg)](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![Playwright](https://img.shields.io/badge/playwright-1.49+-green)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-lightgrey)
 
-**Comprueba que cada accion de navegador hizo lo que pretendia — y la deshace si no.**
+**Libreria de Python que comprueba que cada accion de navegador hizo lo que pretendia
+— y la deshace si no.**
 
 Un agente hace clic en «Anadir Camiseta M». Playwright no da error. El carrito acaba
 con un pantalon. Nadie se entera hasta tres pasos despues, cuando ya es tarde para
@@ -13,14 +14,14 @@ deshacerlo.
 
 Eso no es un selector roto: es un **efecto equivocado**, y hoy nadie lo comprueba.
 Los *healer agents* reparan selectores que ya no encuentran nada. Los frameworks de
-agentes clican y confian. ActionProof hace la pregunta que falta: *¿lo que cambio en
+agentes clican y confian. ActionPrufe hace la pregunta que falta: *¿lo que cambio en
 la pagina es lo que yo queria cambiar?*
 
 ```python
 from playwright.async_api import async_playwright
-from actionproof import ActionProof, VerificationFailed
+from actionprufe import ActionPrufe, VerificationFailed
 
-ap = ActionProof(page)
+ap = ActionPrufe(page)
 
 # Verificacion automatica: no hay que declarar nada.
 await ap.click(page.get_by_role("button", name="Anadir Camiseta M"))
@@ -32,7 +33,7 @@ await ap.click(
 )
 ```
 
-Si el efecto no corresponde al objetivo, ActionProof **lo deshace y reintenta**. Si no
+Si el efecto no corresponde al objetivo, ActionPrufe **lo deshace y reintenta**. Si no
 puede deshacerlo, **aborta** en vez de seguir operando sobre un estado que ya no es el
 que se creia.
 
@@ -62,7 +63,7 @@ sustitucion de contenido, si.
 ### 2. Estabilizacion antes de juzgar
 
 Sin esperar a que la pagina se asiente no se puede distinguir «la accion no hizo nada»
-de «la accion aun no ha hecho nada». ActionProof espera a que dos lecturas consecutivas
+de «la accion aun no ha hecho nada». ActionPrufe espera a que dos lecturas consecutivas
 coincidan, y si se agota el tiempo con la pagina todavia mutando **lo dice**: un diff
 vacio sobre una pagina inestable es `AMBIGUOUS`, nunca `MISMATCH`.
 
@@ -137,7 +138,7 @@ intentos y cuantas veces hubo que deshacer. Los fallos se lanzan como
 ### Ajustes
 
 ```python
-ActionProof(
+ActionPrufe(
     page,
     ai_judge=GeminiJudge(api_key),  # opcional
     ambiguous="reject",             # "accept" si prefieres no bloquear
@@ -185,7 +186,7 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 - [x] Arbitro de IA opcional con veredicto binario, acotado en tiempo
 - [x] Redaccion de campos sensibles antes de salir del navegador
 - [x] Inversas y verificacion de que el efecto se retiro
-- [x] API publica `ActionProof`
+- [x] API publica `ActionPrufe`
 - [x] Pruebas del nucleo sin navegador
 - [x] Paginas de prueba hostiles (lista virtualizada que recicla nodos, efecto tardio)
 - [x] Pruebas de integracion con navegador real

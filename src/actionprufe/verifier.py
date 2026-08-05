@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Literal
 from . import diff as diffing
 from . import undo
 from .ai_judge import AIJudge
-from .errors import ActionProofError, UndoFailed, VerificationFailed
+from .errors import ActionPrufeError, UndoFailed, VerificationFailed
 from .judge import judge
 from .settling import DEFAULT_QUIET_MS, DEFAULT_TIMEOUT_MS, wait_for_effect, wait_until_settled
 from .snapshot import describe_element, fingerprint
@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover - solo para tipado
 AmbiguousPolicy = Literal["reject", "accept"]
 
 
-class ActionProof:
+class ActionPrufe:
     """Envuelve una pagina de Playwright y verifica el efecto de cada accion."""
 
     def __init__(
@@ -176,7 +176,7 @@ class ActionProof:
                 failure = VerificationFailed(verdict, changes, attempt)
                 try:
                     await self._revert(spec, changes, target, before)
-                except ActionProofError as undo_error:
+                except ActionPrufeError as undo_error:
                     raise undo_error from failure
                 raise failure
 

@@ -1,4 +1,4 @@
-"""Tipos compartidos por todo ActionProof.
+"""Tipos compartidos por todo ActionPrufe.
 
 La pieza clave es `NodeKey`: la identidad de un elemento **no** incluye su posicion
 en el DOM. En una pagina virtualizada (React reciclando nodos de una lista) el mismo

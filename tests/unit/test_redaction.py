@@ -6,11 +6,11 @@ libreria y, cuando el veredicto es ambiguo, en el prompt que se envia a un terce
 
 from __future__ import annotations
 
-from actionproof import diff as diffing
-from actionproof.ai_judge import build_prompt
-from actionproof.judge import judge
-from actionproof.snapshot import REDACTED
-from actionproof.types import ActionSpec, NodeKey, Verdict
+from actionprufe import diff as diffing
+from actionprufe.ai_judge import build_prompt
+from actionprufe.judge import judge
+from actionprufe.snapshot import REDACTED
+from actionprufe.types import ActionSpec, NodeKey, Verdict
 from builders import node, snapshot
 
 CONTRASENA = "hunter2-secreta"

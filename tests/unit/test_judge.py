@@ -1,6 +1,6 @@
-from actionproof import diff as diffing
-from actionproof.judge import judge
-from actionproof.types import ActionSpec, NodeKey, Verdict
+from actionprufe import diff as diffing
+from actionprufe.judge import judge
+from actionprufe.types import ActionSpec, NodeKey, Verdict
 from builders import node, snapshot
 
 

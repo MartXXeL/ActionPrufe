@@ -7,8 +7,8 @@ from collections.abc import Callable
 import pytest
 from playwright.async_api import Page
 
-from actionproof import ActionProof, VerificationFailed
-from actionproof.snapshot import REDACTED
+from actionprufe import ActionPrufe, VerificationFailed
+from actionprufe.snapshot import REDACTED
 
 pytestmark = pytest.mark.browser
 
@@ -18,7 +18,7 @@ async def test_tienda_honesta_no_produce_falsos_positivos(
 ) -> None:
     """Lo primero que tiene que hacer bien: no inventarse fallos donde no los hay."""
     await page.goto(fixture_url("honest.html"))
-    ap = ActionProof(page)
+    ap = ActionPrufe(page)
 
     result = await ap.click(page.get_by_role("button", name="Anadir Camiseta M"))
 
@@ -32,7 +32,7 @@ async def test_fill_y_conmutacion_en_pagina_honesta(
     page: Page, fixture_url: Callable[[str], str]
 ) -> None:
     await page.goto(fixture_url("honest.html"))
-    ap = ActionProof(page)
+    ap = ActionPrufe(page)
 
     assert (await ap.fill(page.get_by_label("Cupon"), "VERANO25")).ok
     assert (await ap.check(page.get_by_label("Acepto las condiciones"))).ok
@@ -47,7 +47,7 @@ async def test_una_contrasena_real_no_sale_de_la_pagina(
 ) -> None:
     """Contra un navegador de verdad: el valor se verifica sin llegar a leerse."""
     await page.goto(fixture_url("honest.html"))
-    ap = ActionProof(page)
+    ap = ActionPrufe(page)
 
     result = await ap.fill(page.get_by_label("Contrasena"), "hunter2-secreta")
 
@@ -63,7 +63,7 @@ async def test_el_efecto_tardio_no_se_toma_por_ausencia_de_efecto(
 ) -> None:
     """El efecto llega 700 ms despues; sin estabilizacion seria un falso negativo."""
     await page.goto(fixture_url("late.html"))
-    ap = ActionProof(page)
+    ap = ActionPrufe(page)
 
     result = await ap.click(page.get_by_role("button", name="Reservar Bilbao Madrid"))
 
@@ -76,12 +76,12 @@ async def test_lista_virtualizada_el_clic_acaba_en_el_vecino(
 ) -> None:
     """El caso que justifica la libreria entera.
 
-    Playwright clica sin error y el carrito acaba con otro producto. ActionProof
+    Playwright clica sin error y el carrito acaba con otro producto. ActionPrufe
     lo detecta, lo deshace con el control de retirada de la propia pagina y, al
     ver que se repite, aborta en vez de dar la accion por buena.
     """
     await page.goto(fixture_url("virtualized.html"))
-    ap = ActionProof(page, max_attempts=2)
+    ap = ActionPrufe(page, max_attempts=2)
 
     with pytest.raises(VerificationFailed) as error:
         await ap.click(page.get_by_role("button", name="Anadir Camiseta M"))

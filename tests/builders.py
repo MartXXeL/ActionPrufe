@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from actionproof.types import Node, NodeKey, Snapshot
+from actionprufe.types import Node, NodeKey, Snapshot
 
 
 def node(

@@ -26,6 +26,11 @@
     <label for="clave">Contrasena</label>
     <input id="clave" name="clave" type="password">
 
+    <!-- Sin type=password, sin autocomplete y sin data-ap-sensitive: la libreria no
+         tiene forma de saber que aqui va un secreto. Solo quien llama lo sabe. -->
+    <label for="cuenta">Numero de cuenta</label>
+    <input id="cuenta" name="cuenta" type="text">
+
     <label for="envio">Envio</label>
     <select id="envio" name="envio">
       <option>Estandar</option>

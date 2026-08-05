@@ -7,9 +7,19 @@ el framework recicla nodos por debajo.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from .types import Node, NodeKey, Snapshot
+
+EVAL_TIMEOUT_S = 10.0
+"""Tope de cada evaluacion en la pagina.
+
+El script se ejecuta en el contexto de la pagina, que es de un tercero y puede haber
+sustituido las funciones nativas de las que dependen los ayudantes. Sin tope, una de
+esas funciones colgada bloquea la accion entera y el `timeout_ms` configurado no llega
+a aplicarse nunca, porque su reloj solo avanza entre evaluaciones.
+"""
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
     from playwright.async_api import Locator, Page
@@ -60,8 +70,10 @@ _HELPERS_JS += r"""
   }
 
   function roleOf(el) {
-    const explicit = el.getAttribute('role');
-    if (explicit) return explicit.trim().toLowerCase();
+    // norm() tambien aqui: el rol lo escribe la pagina y un atributo de varios MB en
+    // miles de nodos se convierte en clave de diccionario y se rehashea en cada sondeo.
+    const explicit = norm(el.getAttribute('role'));
+    if (explicit) return explicit.toLowerCase();
     const tag = el.tagName.toLowerCase();
     switch (tag) {
       case 'a': return el.hasAttribute('href') ? 'link' : null;
@@ -146,7 +158,7 @@ _HELPERS_JS += r"""
     if (el.getAttribute('aria-expanded') === 'true') st.push('expanded');
     if (el.getAttribute('aria-disabled') === 'true') st.push('disabled');
     if (el.hasAttribute('data-ap-state')) {
-      st.push.apply(st, el.getAttribute('data-ap-state').split(/\s+/));
+      st.push.apply(st, norm(el.getAttribute('data-ap-state')).split(/\s+/).slice(0, 16));
     }
     return Array.from(new Set(st.filter(Boolean))).sort();
   }
@@ -220,17 +232,23 @@ def _node_from(raw: dict[str, Any]) -> Node:
     )
 
 
-async def capture(page: Page, *, settled: bool = True) -> Snapshot:
+async def capture(
+    page: Page, *, settled: bool = True, timeout_s: float = EVAL_TIMEOUT_S
+) -> Snapshot:
     """Captura el estado semantico actual de la pagina.
 
     Args:
         page: pagina de Playwright de la que leer el estado.
         settled: si la pagina se considera estabilizada en el momento de capturar.
+        timeout_s: tope de la evaluacion en la pagina.
 
     Returns:
         El `Snapshot` correspondiente.
+
+    Raises:
+        TimeoutError: si la pagina no devuelve el estado a tiempo.
     """
-    raw: dict[str, Any] = await page.evaluate(_COLLECT_JS)
+    raw: dict[str, Any] = await asyncio.wait_for(page.evaluate(_COLLECT_JS), timeout=timeout_s)
     return Snapshot(
         url=raw["url"],
         nodes=tuple(_node_from(n) for n in raw["nodes"]),
@@ -239,16 +257,20 @@ async def capture(page: Page, *, settled: bool = True) -> Snapshot:
     )
 
 
-async def describe_element(locator: Locator) -> Node:
+async def describe_element(locator: Locator, *, timeout_s: float = EVAL_TIMEOUT_S) -> Node:
     """Lee la identidad y el estado de un elemento concreto, antes de actuar sobre el.
 
     Args:
         locator: localizador de Playwright que debe resolver a un unico elemento.
+        timeout_s: tope de la evaluacion en la pagina.
 
     Returns:
         El `Node` que representa a ese elemento en el momento de la lectura.
+
+    Raises:
+        TimeoutError: si la pagina no devuelve el estado a tiempo.
     """
-    raw: dict[str, Any] = await locator.evaluate(_DESCRIBE_JS)
+    raw: dict[str, Any] = await asyncio.wait_for(locator.evaluate(_DESCRIBE_JS), timeout=timeout_s)
     return _node_from(raw)
 
 

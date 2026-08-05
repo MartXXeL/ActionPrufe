@@ -79,23 +79,40 @@ class ActionPrufe:
         """Desmarca una casilla y comprueba que quedo desmarcada esa y solo esa."""
         return await self._run("uncheck", target, intent=intent, act=target.uncheck)
 
-    async def fill(self, target: Locator, value: str, *, intent: str | None = None) -> Result:
-        """Escribe un valor y comprueba que acabo en ese campo."""
+    async def fill(
+        self, target: Locator, value: str, *, intent: str | None = None, sensitive: bool = False
+    ) -> Result:
+        """Escribe un valor y comprueba que acabo en ese campo.
+
+        Args:
+            target: campo sobre el que escribir.
+            value: texto a escribir.
+            intent: intencion declarada, opcional.
+            sensitive: fuerza el trato de secreto aunque la pagina no lo declare. La
+                deteccion automatica se apoya en `type=password`, en `autocomplete` y en
+                `data-ap-sensitive`, que los escribe la propia pagina; un campo de tarjeta
+                sin marcar o una cuenta bancaria en un `type=text` no se detectan solos.
+                Si lo que escribes es un secreto, dilo aqui y no confies en la pagina.
+        """
 
         async def act() -> None:
             await target.fill(value)
 
-        return await self._run("fill", target, intent=intent, act=act, payload=value)
+        return await self._run(
+            "fill", target, intent=intent, act=act, payload=value, sensitive=sensitive
+        )
 
     async def select_option(
-        self, target: Locator, label: str, *, intent: str | None = None
+        self, target: Locator, label: str, *, intent: str | None = None, sensitive: bool = False
     ) -> Result:
         """Selecciona una opcion por su etiqueta y comprueba que es la elegida."""
 
         async def act() -> None:
             await target.select_option(label=label)
 
-        return await self._run("select", target, intent=intent, act=act, payload=label)
+        return await self._run(
+            "select", target, intent=intent, act=act, payload=label, sensitive=sensitive
+        )
 
     async def settle(self) -> Snapshot:
         """Espera a que la pagina deje de moverse y devuelve su estado."""
@@ -104,7 +121,12 @@ class ActionPrufe:
         )
 
     async def _describe_target(
-        self, target: Locator, kind: str, payload: str | None, intent: str | None
+        self,
+        target: Locator,
+        kind: str,
+        payload: str | None,
+        intent: str | None,
+        sensitive: bool = False,
     ) -> ActionSpec:
         """Lee la identidad del objetivo *antes* de tocarlo."""
         node = await describe_element(target)
@@ -115,7 +137,10 @@ class ActionPrufe:
             target_value=node.value,
             payload=payload,
             intent=intent,
-            sensitive=node.sensitive,
+            # Se suman las dos fuentes y nunca se restan: lo que diga la pagina puede
+            # anadir sensibilidad, jamas quitarla. La pagina es de un tercero y no puede
+            # tener la ultima palabra sobre si un secreto de quien llama se publica.
+            sensitive=sensitive or node.sensitive,
         )
 
     async def _adjudicate(self, spec: ActionSpec, changes: Diff, judgement: Judgement) -> Judgement:
@@ -149,10 +174,11 @@ class ActionPrufe:
         intent: str | None,
         act: Callable[[], Awaitable[None]],
         payload: str | None = None,
+        sensitive: bool = False,
     ) -> Result:
         """Ejecuta el ciclo completo de una accion verificada."""
         before = await self.settle()
-        spec = await self._describe_target(target, kind, payload, intent)
+        spec = await self._describe_target(target, kind, payload, intent, sensitive)
         undone = 0
 
         for attempt in range(1, self._max_attempts + 1):
@@ -162,6 +188,10 @@ class ActionPrufe:
                 self._page, baseline, quiet_ms=self._quiet_ms, timeout_ms=self._timeout_ms
             )
             changes = diffing.compute(before, after)
+            if spec.sensitive:
+                # Se tapa antes de juzgar, no despues: asi ni el veredicto, ni el motivo,
+                # ni el prompt, ni el Result que se devuelve llegan a ver el valor.
+                changes = diffing.redact(changes, spec.target)
             verdict = judge(spec, changes, before, after)
             verdict = await self._adjudicate(spec, changes, verdict)
 
@@ -186,7 +216,11 @@ class ActionPrufe:
             # El objetivo puede haber mutado al deshacer: se relee antes de reintentar.
             node = await describe_element(target)
             spec = replace(
-                spec, target=node.key, target_states=node.states, target_value=node.value
+                spec,
+                target=node.key,
+                target_states=node.states,
+                target_value=node.value,
+                sensitive=spec.sensitive or node.sensitive,
             )
 
         raise AssertionError("inalcanzable")  # pragma: no cover

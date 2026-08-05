@@ -59,6 +59,26 @@ async def test_una_contrasena_real_no_sale_de_la_pagina(
     assert await page.get_by_label("Contrasena").input_value() == "hunter2-secreta"
 
 
+async def test_un_campo_sin_marcar_se_protege_si_quien_llama_lo_declara(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """El caso que la deteccion automatica no puede cubrir.
+
+    El campo es un `type=text` corriente: la pagina no dice en ninguna parte que ahi va
+    un secreto, y no hay forma de adivinarlo. La palabra de quien llama basta.
+    """
+    await page.goto(fixture_url("honest.html"))
+    ap = ActionPrufe(page)
+    iban = "ES9121000418450200051332"
+
+    result = await ap.fill(page.get_by_label("Numero de cuenta"), iban, sensitive=True)
+
+    assert result.ok
+    assert iban not in result.diff.describe()
+    assert iban not in result.judgement.reason
+    assert await page.get_by_label("Numero de cuenta").input_value() == iban
+
+
 async def test_el_efecto_tardio_no_se_toma_por_ausencia_de_efecto(
     page: Page, fixture_url: Callable[[str], str]
 ) -> None:

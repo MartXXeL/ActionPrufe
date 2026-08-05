@@ -10,9 +10,11 @@ peor que parar.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import TYPE_CHECKING
 
 from .errors import IrreversibleAction
+from .snapshot import REDACTED
 from .types import ActionSpec, Change, Diff, NodeKey
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
@@ -56,10 +58,24 @@ def _locator_for(page: Page, key: NodeKey) -> Locator:
 
 
 def _removal_control(diff: Diff) -> Change | None:
-    """Busca entre lo que aparecio un control que sirva para retirar el efecto."""
-    for change in diff.of_kind("appeared"):
-        if change.key.role in {"button", "link"} and _REMOVAL_RE.search(change.key.name):
-            return change
+    """Busca entre lo que aparecio un control que sirva para retirar el efecto.
+
+    Es la estrategia mas especulativa de todas y la unica que se apoya en texto que
+    escribe la pagina, asi que se exige que el control **haya aparecido junto al efecto
+    que dice retirar**: en su misma region y acompanado de algo mas. Sin esa condicion,
+    una pagina hostil solo tiene que mostrar un boton llamado "Cancelar y confirmar la
+    transferencia" tras la accion fallida para que se le pulse solo.
+    """
+    appeared = diff.of_kind("appeared")
+    vecinos = Counter(change.key.region for change in appeared)
+    for change in appeared:
+        if change.key.role not in {"button", "link"}:
+            continue
+        if not _REMOVAL_RE.search(change.key.name):
+            continue
+        if vecinos[change.key.region] < 2:
+            continue
+        return change
     return None
 
 
@@ -79,6 +95,14 @@ async def revert(page: Page, spec: ActionSpec, diff: Diff, locator: Locator) -> 
         IrreversibleAction: si no se conoce ninguna inversa aplicable.
     """
     if spec.kind == "fill":
+        if spec.target_value == REDACTED:
+            # El valor previo nunca se leyo, asi que no hay nada que restaurar.
+            # Reescribir el marcador dejaria el campo con la cadena "[redactado]"
+            # dentro, que es peor que no tocarlo: parece deshecho y no lo esta.
+            raise IrreversibleAction(
+                f"no se puede restaurar {spec.target} porque su valor previo es sensible "
+                f"y nunca se leyo; el campo queda como esta"
+            )
         await locator.fill(spec.target_value or "")
         return f"se reescribio el valor previo {spec.target_value!r}"
 
@@ -94,8 +118,12 @@ async def revert(page: Page, spec: ActionSpec, diff: Diff, locator: Locator) -> 
 
     control = _removal_control(diff)
     if control is not None:
-        await _locator_for(page, control.key).click()
-        return f"se uso el control de retirada {control.key}"
+        candidato = _locator_for(page, control.key)
+        # `.first` sobre varias coincidencias es una moneda al aire, y el clic puede ser
+        # irreversible: si el control no es univoco, no se pulsa nada.
+        if await candidato.count() == 1:
+            await candidato.click()
+            return f"se uso el control de retirada {control.key}"
 
     if diff.url_changed:
         await page.go_back()

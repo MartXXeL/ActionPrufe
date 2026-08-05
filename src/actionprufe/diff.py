@@ -9,9 +9,42 @@ from __future__ import annotations
 
 from collections import Counter
 
+from .snapshot import REDACTED
 from .types import Change, Diff, NodeKey, Snapshot
 
 Payload = tuple[str | None, frozenset[str]]
+
+
+def redact(diff: Diff, target: NodeKey | None) -> Diff:
+    """Tapa el valor observado del objetivo, para cuando quien llama lo declaro secreto.
+
+    La redaccion normal ocurre dentro del navegador, pero se apoya en marcas que escribe
+    la propia pagina (`type=password`, `autocomplete`, `data-ap-sensitive`). Cuando es
+    quien llama el que sabe que ese campo lleva un secreto, el valor ya ha cruzado a
+    Python sin tapar y hay que taparlo aqui, antes de que llegue a un motivo, a un log o
+    al prompt del arbitro.
+
+    Se toca solo el objetivo: el resto de la pagina no es un secreto de quien llama, y
+    vaciarlo entero dejaria la verificacion sin nada que comparar.
+    """
+    if target is None:
+        return diff
+
+    def tapar(
+        payload: tuple[str | None, frozenset[str]] | None,
+    ) -> tuple[str | None, frozenset[str]] | None:
+        if payload is None:
+            return None
+        value, states = payload
+        return (REDACTED if value else value, states)
+
+    changes = tuple(
+        Change(kind=c.kind, key=c.key, before=tapar(c.before), after=tapar(c.after))
+        if c.key == target
+        else c
+        for c in diff.changes
+    )
+    return Diff(changes=changes, url_changed=diff.url_changed, text_changed=diff.text_changed)
 
 
 def _group(snapshot: Snapshot) -> dict[NodeKey, Counter[Payload]]:

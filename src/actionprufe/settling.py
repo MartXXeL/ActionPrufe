@@ -2,6 +2,10 @@
 
 Sin esto no se puede distinguir "la accion no hizo nada" de "la accion aun no ha
 hecho nada". Es la diferencia entre abortar una operacion buena y aceptar una mala.
+
+Los dos bucles preguntan lo mismo —¿se ha movido algo?— y para eso les basta la huella
+barata, que se calcula dentro de la pagina y solo devuelve una cadena. El `Snapshot`
+completo se construye una sola vez, al final.
 """
 
 from __future__ import annotations
@@ -9,7 +13,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from .snapshot import capture, fingerprint
+from .snapshot import capture, probe
 from .types import Snapshot
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
@@ -42,28 +46,21 @@ async def wait_until_settled(
     deadline = loop.time() + timeout_ms / 1000
     interval = max(quiet_ms / 1000, 0.02)
 
-    previous = await capture(page, settled=False)
-    previous_print = fingerprint(previous)
+    anterior = await probe(page)
 
     while loop.time() < deadline:
         await asyncio.sleep(interval)
-        current = await capture(page, settled=False)
-        current_print = fingerprint(current)
-        if current_print == previous_print:
-            return Snapshot(
-                url=current.url,
-                nodes=current.nodes,
-                text_digest=current.text_digest,
-                settled=True,
-            )
-        previous, previous_print = current, current_print
+        actual = await probe(page)
+        if actual == anterior:
+            return await capture(page, settled=True)
+        anterior = actual
 
-    return previous
+    return await capture(page, settled=False)
 
 
 async def wait_for_effect(
     page: Page,
-    baseline: tuple[str, str, int],
+    baseline: str,
     *,
     quiet_ms: int = DEFAULT_QUIET_MS,
     timeout_ms: int = DEFAULT_TIMEOUT_MS,
@@ -88,10 +85,9 @@ async def wait_for_effect(
     deadline = loop.time() + timeout_ms / 1000
 
     while loop.time() < deadline:
-        current = await capture(page, settled=False)
-        if fingerprint(current) != baseline:
-            remaining_ms = max(int((deadline - loop.time()) * 1000), quiet_ms)
-            return await wait_until_settled(page, quiet_ms=quiet_ms, timeout_ms=remaining_ms)
+        if await probe(page) != baseline:
+            restante_ms = max(int((deadline - loop.time()) * 1000), quiet_ms)
+            return await wait_until_settled(page, quiet_ms=quiet_ms, timeout_ms=restante_ms)
         await asyncio.sleep(POLL_MS / 1000)
 
     # Se agoto el plazo sin que nada se moviera: aqui "no paso nada" ya es una

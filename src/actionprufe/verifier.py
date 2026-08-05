@@ -24,7 +24,7 @@ from .ai_judge import AIJudge
 from .errors import ActionPrufeError, UndoFailed, VerificationFailed
 from .judge import judge
 from .settling import DEFAULT_QUIET_MS, DEFAULT_TIMEOUT_MS, wait_for_effect, wait_until_settled
-from .snapshot import describe_element, fingerprint
+from .snapshot import describe_element, probe
 from .types import ActionSpec, Diff, Judgement, Result, Snapshot, Verdict
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
@@ -255,7 +255,7 @@ class ActionPrufe:
         undone = 0
 
         for attempt in range(1, self._max_attempts + 1):
-            baseline = fingerprint(before)
+            baseline = await probe(self._page)
             await act()
             after = await wait_for_effect(
                 self._page, baseline, quiet_ms=self._quiet_ms, timeout_ms=self._timeout_ms

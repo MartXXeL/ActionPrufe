@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from .types import REDACTED, Node, NodeKey, Snapshot
 
-__all__ = ["EVAL_TIMEOUT_S", "REDACTED", "capture", "describe_element", "fingerprint"]
+__all__ = ["EVAL_TIMEOUT_S", "REDACTED", "capture", "describe_element", "probe"]
 
 EVAL_TIMEOUT_S = 10.0
 """Tope de cada evaluacion en la pagina.
@@ -256,6 +256,51 @@ _COLLECT_JS = (
 
 _DESCRIBE_JS = "(el) => {\n" + _HELPERS_JS + "\n  return describe(el);\n}"
 
+# Solo la huella, sin construir ni enviar la lista de nodos. Los bucles de espera
+# preguntan «¿se ha movido algo?» cada 50 ms, y responder a eso serializando cuatro mil
+# nodos por sondeo es lo que convierte una pagina grande en una espera insoportable.
+_FINGERPRINT_JS = (
+    "() => {\n"
+    + _HELPERS_JS
+    + r"""
+  const LIMIT = 4000;
+  function* recorrer(raiz) {
+    for (const el of raiz.querySelectorAll('*')) {
+      yield el;
+      if (el.shadowRoot) yield* recorrer(el.shadowRoot);
+    }
+  }
+
+  let h = 5381;
+  let vistos = 0;
+  function mezclar(s) {
+    for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  }
+
+  if (document.body) {
+    for (const el of recorrer(document.body)) {
+      if (vistos >= LIMIT) break;
+      const role = roleOf(el);
+      if (!role) continue;
+      if (role !== 'option' && !visible(el)) continue;
+      const name = nameOf(el);
+      const value = valueOf(el);
+      if (!name && value === null) continue;
+      vistos++;
+      mezclar(role); mezclar('\x1f'); mezclar(name); mezclar('\x1f');
+      mezclar(regionOf(el)); mezclar('\x1f'); mezclar(String(value)); mezclar('\x1f');
+      mezclar(statesOf(el).join(','));
+    }
+  }
+
+  const text = (document.body ? document.body.innerText : '').replace(/\s+/g, ' ').trim();
+  mezclar(String(text.length));
+  mezclar(text);
+  return String(h) + ':' + vistos;
+}
+"""
+)
+
 
 def _node_from(raw: dict[str, Any]) -> Node:
     """Convierte un elemento crudo del navegador en un `Node`."""
@@ -330,16 +375,26 @@ async def describe_element(locator: Locator, *, timeout_s: float = EVAL_TIMEOUT_
     return _node_from(raw)
 
 
-def fingerprint(snapshot: Snapshot) -> tuple[str, str, int]:
-    """Huella barata para detectar si la pagina sigue mutando.
+async def probe(page: Page, *, timeout_s: float = EVAL_TIMEOUT_S) -> str:
+    """Huella barata del estado, para saber si *algo* se movio.
 
-    No sirve para diferenciar: sirve para saber si *algo* se movio entre dos lecturas.
+    No sirve para diferenciar —para eso hace falta el `Snapshot` entero—, sino para
+    responder a la unica pregunta de los bucles de espera. El calculo se hace dentro de
+    la pagina y solo cruza una cadena, en vez de la lista completa de nodos.
+
+    Args:
+        page: pagina a sondear.
+        timeout_s: tope de la evaluacion en cada marco.
+
+    Returns:
+        Una cadena que cambia si cambia cualquier cosa observable.
     """
-    joined = "|".join(
-        f"{n.key.role}\x1f{n.key.name}\x1f{n.key.region}\x1f{n.value}\x1f{','.join(sorted(n.states))}"
-        for n in snapshot.nodes
-    )
-    digest = 5381
-    for ch in joined:
-        digest = ((digest * 33) ^ ord(ch)) & 0xFFFFFFFF
-    return (snapshot.text_digest, str(digest), len(snapshot.nodes))
+    huellas: list[str] = []
+    for frame in page.frames:
+        try:
+            huellas.append(await asyncio.wait_for(frame.evaluate(_FINGERPRINT_JS), timeout_s))
+        except TimeoutError:
+            raise
+        except Exception:  # noqa: BLE001 - un marco que se va no invalida el sondeo
+            continue
+    return "|".join(huellas)

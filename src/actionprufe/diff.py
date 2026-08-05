@@ -15,19 +15,23 @@ from .types import Change, Diff, NodeKey, Snapshot
 Payload = tuple[str | None, frozenset[str]]
 
 
-def redact(diff: Diff, target: NodeKey | None) -> Diff:
-    """Tapa el valor observado del objetivo, para cuando quien llama lo declaro secreto.
+def redact(diff: Diff, target: NodeKey | None, secret: str | None = None) -> Diff:
+    """Tapa el secreto de quien llama alli donde asome.
 
     La redaccion normal ocurre dentro del navegador, pero se apoya en marcas que escribe
     la propia pagina (`type=password`, `autocomplete`, `data-ap-sensitive`). Cuando es
     quien llama el que sabe que ese campo lleva un secreto, el valor ya ha cruzado a
-    Python sin tapar y hay que taparlo aqui, antes de que llegue a un motivo, a un log o
-    al prompt del arbitro.
+    Python sin tapar y hay que taparlo aqui, antes de que llegue a un motivo, a un log,
+    a un fichero de traza o al prompt del arbitro.
 
-    Se toca solo el objetivo: el resto de la pagina no es un secreto de quien llama, y
-    vaciarlo entero dejaria la verificacion sin nada que comparar.
+    Se tapa el objetivo **y cualquier otro nodo cuyo valor contenga el secreto**. Tapar
+    solo el objetivo dejaba escapar el caso mas normal de todos: la pagina que refleja lo
+    que escribes en otro sitio —una vista previa, un medidor de fuerza, un campo de
+    confirmacion que no es `type=password`— y que el navegador no reconoce como sensible.
+    El resto de la pagina se deja intacto: no es un secreto de quien llama, y vaciarlo
+    entero dejaria la verificacion sin nada que comparar.
     """
-    if target is None:
+    if target is None and not secret:
         return diff
 
     def tapar(
@@ -38,9 +42,25 @@ def redact(diff: Diff, target: NodeKey | None) -> Diff:
         value, states = payload
         return (REDACTED if value else value, states)
 
+    def delata(payload: tuple[str | None, frozenset[str]] | None) -> bool:
+        return bool(secret and payload and payload[0] and secret in payload[0])
+
+    def clave(key: NodeKey) -> NodeKey:
+        # El nombre accesible tambien puede llevar el secreto dentro: hay controles que
+        # reflejan lo tecleado en su propio `aria-label`, y ese texto no pasa por la
+        # redaccion del navegador porque se resuelve antes de mirar si el campo es
+        # sensible. Se tapa aqui aunque cambie la identidad del nodo: perder un poco de
+        # precision al atribuir es mejor que publicar un secreto.
+        if secret and secret in key.name:
+            return NodeKey(role=key.role, name=REDACTED, region=key.region)
+        return key
+
     changes = tuple(
-        Change(kind=c.kind, key=c.key, before=tapar(c.before), after=tapar(c.after))
+        Change(kind=c.kind, key=clave(c.key), before=tapar(c.before), after=tapar(c.after))
         if c.key == target
+        or delata(c.before)
+        or delata(c.after)
+        or (secret and secret in c.key.name)
         else c
         for c in diff.changes
     )

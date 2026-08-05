@@ -52,7 +52,15 @@ async def wait_until_settled(
         await asyncio.sleep(interval)
         actual = await probe(page)
         if actual == anterior:
-            return await capture(page, settled=True)
+            estado = await capture(page, settled=True)
+            # La captura es una lectura mas, y la pagina ha tenido su hueco para moverse
+            # mientras se hacia. Sin volver a sondear despues, se devolveria como
+            # asentado un estado que ya no lo esta, que es justo lo que evita este modulo.
+            despues = await probe(page)
+            if despues == actual:
+                return estado
+            anterior = despues
+            continue
         anterior = actual
 
     return await capture(page, settled=False)

@@ -1,0 +1,17 @@
+<meta charset="utf-8">
+<title>Dos marcos que dicen llamarse igual</title>
+<!--
+  Los dos iframes declaran `name="pago"` y su contenido reproduce la misma region, el
+  mismo rol y el mismo nombre accesible. El segundo es el impostor: fabrica el texto de
+  exito sin que haya ocurrido ningun pago.
+
+  El nombre de un marco lo escribe quien pone la etiqueta, es decir la pagina. Si la
+  region se dedujera de ahi, los nodos de ambos marcos compartirian identidad y el
+  efecto fabricado se atribuiria al marco legitimo. Anteponer la posicion que asigna
+  Playwright, que la pagina no elige, es lo que mantiene separadas las dos regiones.
+-->
+<main>
+  <h1>Finalizar compra</h1>
+  <iframe name="pago" src="./pasarela-interior.html" width="420" height="200"></iframe>
+  <iframe name="pago" src="./pasarela-interior.html" width="420" height="200"></iframe>
+</main>

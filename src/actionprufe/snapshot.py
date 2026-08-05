@@ -8,7 +8,10 @@ el framework recicla nodos por debajo.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING, Any
+
+from playwright.async_api import Error as PlaywrightError
 
 from .types import REDACTED, Node, NodeKey, Snapshot
 
@@ -24,7 +27,7 @@ a aplicarse nunca, porque su reloj solo avanza entre evaluaciones.
 """
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
-    from playwright.async_api import Locator, Page
+    from playwright.async_api import Frame, Locator, Page
 
 _HELPERS_JS = (
     r"""
@@ -121,18 +124,11 @@ _HELPERS_JS += r"""
     return norm(el.value);
   }
 
-  // El prefijo del marco se calcula aqui, en la pagina, y no al juntar los resultados
-  // en Python: asi la region que se lee de un elemento suelto y la que se lee del
-  // barrido completo salen iguales. Si se prefijara solo en el barrido, el objetivo de
-  // una accion dentro de un iframe no encajaria nunca con lo observado.
-  function framePrefix() {
-    try {
-      if (window.top === window.self) return '';
-    } catch (e) {
-      // Un marco de otro origen ni siquiera deja comparar: es un marco, y basta.
-    }
-    const etiqueta = window.name || location.pathname.split('/').pop() || 'iframe';
-    return 'iframe:' + etiqueta + '/';
+  // Todo lo que compone una region y sale de la pagina se limpia de los separadores
+  // que la propia gramatica usa. Sin esto, un `id` llamado "pendientes/lista:hechas"
+  // fabrica una region que no le corresponde y se hace pasar por otra.
+  function limpiar(s) {
+    return norm(s).replace(/[\/:]/g, '-');
   }
 
   // El padre de la raiz de un shadow tree no es un elemento: es el host, y hay que
@@ -143,8 +139,10 @@ _HELPERS_JS += r"""
     return root && root.host ? root.host : null;
   }
 
+  // PREFIJO lo calcula Python a partir del marco real que da Playwright, no la pagina.
+  // Antes se deducia aqui de `window.name`, que lo escribe quien pone el <iframe>: dos
+  // marcos podian declararse el mismo y sus nodos se confundian entre si.
   function regionOf(el) {
-    const prefijo = framePrefix();
     // La lista mas cercana se anota como sufijo en vez de cortar la busqueda. Asi
     // mover un elemento de una lista a otra dentro del mismo area se ve como lo que
     // es —un cambio— sin que la lista se coma la region que declaro el autor.
@@ -153,20 +151,20 @@ _HELPERS_JS += r"""
     while (p && p !== document.documentElement) {
       const tag = p.tagName.toLowerCase();
       if (!lista && (tag === 'ul' || tag === 'ol')) {
-        const suya = norm(p.getAttribute('aria-label') || p.getAttribute('id') || '');
+        const suya = limpiar(p.getAttribute('aria-label') || p.getAttribute('id') || '');
         if (suya) lista = '/lista:' + suya;
       }
       const marked = p.getAttribute('data-ap-region');
-      if (marked) return prefijo + norm(marked) + lista;
-      const role = (p.getAttribute('role') || '').toLowerCase();
+      if (marked) return PREFIJO + limpiar(marked) + lista;
+      const role = limpiar(p.getAttribute('role') || '').toLowerCase();
       if (LANDMARKS.has(tag) || LANDMARK_ROLES.has(role)) {
-        const label = norm(p.getAttribute('aria-label') || '');
+        const label = limpiar(p.getAttribute('aria-label') || '');
         const base = role || tag;
-        return prefijo + (label ? base + ':' + label : base) + lista;
+        return PREFIJO + (label ? base + ':' + label : base) + lista;
       }
       p = parentOf(p);
     }
-    return prefijo + 'document' + lista;
+    return PREFIJO + 'document' + lista;
   }
 
   function statesOf(el) {
@@ -214,7 +212,7 @@ _HELPERS_JS += r"""
 """
 
 _COLLECT_JS = (
-    "() => {\n"
+    "(PREFIJO) => {\n"
     + _HELPERS_JS
     + r"""
   const LIMIT = 4000;
@@ -254,13 +252,13 @@ _COLLECT_JS = (
 """
 )
 
-_DESCRIBE_JS = "(el) => {\n" + _HELPERS_JS + "\n  return describe(el);\n}"
+_DESCRIBE_JS = "(el, PREFIJO) => {\n" + _HELPERS_JS + "\n  return describe(el);\n}"
 
 # Solo la huella, sin construir ni enviar la lista de nodos. Los bucles de espera
 # preguntan «¿se ha movido algo?» cada 50 ms, y responder a eso serializando cuatro mil
 # nodos por sondeo es lo que convierte una pagina grande en una espera insoportable.
 _FINGERPRINT_JS = (
-    "() => {\n"
+    "(PREFIJO) => {\n"
     + _HELPERS_JS
     + r"""
   const LIMIT = 4000;
@@ -302,6 +300,42 @@ _FINGERPRINT_JS = (
 )
 
 
+_log = logging.getLogger(__name__)
+
+MAX_FRAMES = 40
+"""Tope de marcos que se recorren.
+
+Una pagina puede abrir cientos de `iframe` y cada uno cuesta una evaluacion en cada
+sondeo. El tope convierte un abuso en una observacion incompleta —que se nota— en vez
+de en una espera que no termina.
+"""
+
+
+def _frame_prefix(page: Page, frame: Frame) -> str:
+    """Prefijo de region de un marco, atado a algo que la pagina no elige.
+
+    El nombre del marco lo escribe quien pone la etiqueta `<iframe>`, asi que dos marcos
+    pueden declararse el mismo y sus nodos acabarian confundiendose. La posicion que les
+    da Playwright, en cambio, es unica por marco: se antepone al nombre para que la
+    region siga siendo legible sin ser falsificable.
+    """
+    if frame is page.main_frame:
+        return ""
+    try:
+        posicion = page.frames.index(frame)
+    except ValueError:  # pragma: no cover - el marco se fue entre medias
+        posicion = -1
+    etiqueta = _clean(frame.name) or "iframe"
+    return f"marco{posicion}:{etiqueta}/"
+
+
+def _clean(text: str | None) -> str:
+    """Quita los separadores que la gramatica de region usa para estructurar."""
+    if not text:
+        return ""
+    return " ".join(text.replace("/", "-").replace(":", "-").split())[:140]
+
+
 def _node_from(raw: dict[str, Any]) -> Node:
     """Convierte un elemento crudo del navegador en un `Node`."""
     return Node(
@@ -335,17 +369,20 @@ async def capture(
     nodes: list[Node] = []
     digests: list[str] = []
 
-    for frame in page.frames:
+    for frame in page.frames[:MAX_FRAMES]:
         try:
             raw: dict[str, Any] = await asyncio.wait_for(
-                frame.evaluate(_COLLECT_JS), timeout=timeout_s
+                frame.evaluate(_COLLECT_JS, _frame_prefix(page, frame)), timeout=timeout_s
             )
-        except TimeoutError:
-            raise
-        except Exception:  # noqa: BLE001 - un marco que se va no invalida la lectura
+        except PlaywrightError as error:
             # Los marcos se destruyen y se recrean solos mientras se navega, y los de
             # otro origen pueden negarse a ejecutar. Ninguna de las dos cosas es motivo
-            # para tirar la observacion del resto de la pagina.
+            # para tirar la observacion del resto de la pagina. Cualquier otro error
+            # —una respuesta con forma inesperada, por ejemplo— si sube: taparlo seria
+            # confundir una pagina manipulada con un marco que se fue.
+            # Se registra igualmente: si esto pasa siempre, todo se juzga «sin efecto» y
+            # sin rastro seria indistinguible de que la accion no hiciera nada.
+            _log.debug("marco omitido al capturar (%s): %s", frame.url, error)
             continue
         nodes.extend(_node_from(n) for n in raw["nodes"])
         digests.append(raw["textDigest"])
@@ -371,7 +408,19 @@ async def describe_element(locator: Locator, *, timeout_s: float = EVAL_TIMEOUT_
     Raises:
         TimeoutError: si la pagina no devuelve el estado a tiempo.
     """
-    raw: dict[str, Any] = await asyncio.wait_for(locator.evaluate(_DESCRIBE_JS), timeout=timeout_s)
+    # El prefijo tiene que salir del mismo sitio que en el barrido, o el objetivo de una
+    # accion dentro de un iframe no coincidiria jamas con lo observado y todo saldria
+    # ambiguo. El marco se le pregunta al propio elemento, no se adivina.
+    prefijo = ""
+    handle = await locator.element_handle()
+    if handle is not None:
+        frame = await handle.owner_frame()
+        if frame is not None:
+            prefijo = _frame_prefix(locator.page, frame)
+
+    raw: dict[str, Any] = await asyncio.wait_for(
+        locator.evaluate(_DESCRIBE_JS, prefijo), timeout=timeout_s
+    )
     return _node_from(raw)
 
 
@@ -390,11 +439,14 @@ async def probe(page: Page, *, timeout_s: float = EVAL_TIMEOUT_S) -> str:
         Una cadena que cambia si cambia cualquier cosa observable.
     """
     huellas: list[str] = []
-    for frame in page.frames:
+    for frame in page.frames[:MAX_FRAMES]:
         try:
-            huellas.append(await asyncio.wait_for(frame.evaluate(_FINGERPRINT_JS), timeout_s))
-        except TimeoutError:
-            raise
-        except Exception:  # noqa: BLE001 - un marco que se va no invalida el sondeo
+            huellas.append(
+                await asyncio.wait_for(
+                    frame.evaluate(_FINGERPRINT_JS, _frame_prefix(page, frame)), timeout_s
+                )
+            )
+        except PlaywrightError as error:  # un marco que se va no invalida el sondeo
+            _log.debug("marco omitido al sondear (%s): %s", frame.url, error)
             continue
     return "|".join(huellas)

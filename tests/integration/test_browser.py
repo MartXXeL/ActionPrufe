@@ -125,8 +125,27 @@ async def test_lo_que_pasa_dentro_de_un_iframe_se_ve(
     )
 
     assert result.ok
-    assert "iframe:pago/pago" in result.diff.describe(), "la region lleva el marco delante"
+    # El prefijo lo pone Playwright por posicion, no el `name=` que escribe la pagina.
+    assert "marco1:pago/pago" in result.diff.describe(), "la region lleva el marco delante"
     assert "preparado" in result.diff.describe()
+
+
+async def test_dos_marcos_con_el_mismo_nombre_no_se_confunden(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """El nombre de un marco lo escribe la pagina; su posicion, no.
+
+    Si la region se dedujera del `name=`, los nodos de los dos marcos compartirian
+    identidad y un efecto fabricado en el segundo se atribuiria al primero.
+    """
+    await page.goto(fixture_url("suplantacion.html"))
+    ap = ActionPrufe(page)
+
+    estado = await ap.settle()
+    regiones = {n.key.region for n in estado.nodes if "pago" in n.key.region}
+
+    assert len(regiones) == 2, f"los dos marcos deben quedar separados, hay {regiones}"
+    assert all(r.startswith("marco") for r in regiones)
 
 
 async def test_lo_que_vive_dentro_de_un_shadow_root_se_ve(

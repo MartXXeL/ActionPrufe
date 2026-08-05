@@ -279,7 +279,7 @@ class ActionPrufe:
             if spec.sensitive:
                 # Se tapa antes de juzgar, no despues: asi ni el veredicto, ni el motivo,
                 # ni el prompt, ni el Result que se devuelve llegan a ver el valor.
-                changes = diffing.redact(changes, spec.target)
+                changes = diffing.redact(changes, spec.target, spec.payload)
             verdict = judge(spec, changes, before, after)
             verdict = await self._adjudicate(spec, changes, verdict)
             self._trace(spec, verdict, changes, attempt)

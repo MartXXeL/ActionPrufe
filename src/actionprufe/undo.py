@@ -146,19 +146,25 @@ async def revert(page: Page, spec: ActionSpec, diff: Diff, locator: Locator) -> 
 
 
 def residue(original: Diff, current: Diff) -> Diff:
-    """Que parte del efecto original sigue presente tras intentar deshacerlo.
+    """Lo que separa la pagina de como estaba antes de la accion equivocada.
+
+    Deshacer bien significa volver al punto de partida, asi que se mira **toda** la
+    diferencia contra el estado previo y no solo si desaparecieron los efectos que se
+    querian retirar. La distincion importa con las inversas que se re-resuelven sobre la
+    pagina viva: si entre la accion y el deshacer la lista se reordena, arrastrar de
+    vuelta puede mover otro elemento y dejar la pagina en un tercer estado —ni el
+    original ni el erroneo— sin que ninguna clave del efecto original siguiera presente.
 
     Args:
-        original: los efectos que produjo la accion equivocada.
+        original: los efectos que produjo la accion equivocada. Se conserva para saber
+            si el cambio de URL formaba parte de lo que habia que deshacer.
         current: la diferencia entre el estado previo y el estado tras deshacer.
 
     Returns:
-        Un `Diff` con los cambios del original que no se han retirado.
+        Un `Diff` con lo que sigue sin cuadrar. Vacio significa que se volvio al origen.
     """
-    originals = {(c.kind, c.key) for c in original.changes if c.kind in {"appeared", "changed"}}
-    remaining = tuple(c for c in current.changes if (c.kind, c.key) in originals)
     return Diff(
-        changes=remaining,
-        url_changed=current.url_changed and original.url_changed,
+        changes=current.changes,
+        url_changed=current.url_changed,
         text_changed=False,
     )

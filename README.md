@@ -1,5 +1,6 @@
 # ActionProof
 
+[![Tests](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml/badge.svg)](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![Playwright](https://img.shields.io/badge/playwright-1.49+-green)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-lightgrey)
@@ -143,9 +144,18 @@ que zonas importan:
 
 ```bash
 ruff check . && ruff format --check .
-pytest                       # nucleo, sin navegador
-pytest -m browser            # pruebas contra paginas reales
+pytest                            # todo
+pytest tests/unit                 # nucleo, sin navegador, centesimas
+pytest -m browser                 # solo contra paginas reales
 ```
+
+Las paginas de `tests/fixtures/` se portan mal a proposito:
+
+| Pagina | Que simula |
+|---|---|
+| `virtualized.html` | La lista rota sus datos en `pointerdown`, asi que el clic acaba en el vecino |
+| `late.html` | El efecto tarda 700 ms, como una respuesta de red lenta |
+| `honest.html` | Todo correcto, para comprobar que no se inventan fallos |
 
 ## ToDo
 
@@ -159,9 +169,11 @@ pytest -m browser            # pruebas contra paginas reales
 - [x] Inversas y verificacion de que el efecto se retiro
 - [x] API publica `ActionProof`
 - [x] Pruebas del nucleo sin navegador
-- [ ] Paginas de prueba hostiles (lista virtualizada, cambios tardios, overlay que roba clics)
-- [ ] Pruebas de integracion con navegador real
-- [ ] CI en GitHub Actions
+- [x] Paginas de prueba hostiles (lista virtualizada que recicla nodos, efecto tardio)
+- [x] Pruebas de integracion con navegador real
+- [x] CI en GitHub Actions
+- [ ] Pagina de prueba con overlay que se queda los clics
+- [ ] Pagina de prueba con confirmacion modal intermedia
 
 ### v0.2 — cobertura real
 - [ ] Acciones pendientes: `hover`, `press`, `drag_and_drop`, `upload`

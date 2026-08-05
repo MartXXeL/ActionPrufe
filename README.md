@@ -6,7 +6,7 @@
 ![Playwright](https://img.shields.io/badge/playwright-1.49+-2EAD33)
 ![Tipado](https://img.shields.io/badge/mypy-strict-2a6db2)
 ![Estilo](https://img.shields.io/badge/estilo-ruff-d7ff64)
-![Pruebas](https://img.shields.io/badge/pruebas-72-brightgreen)
+![Pruebas](https://img.shields.io/badge/pruebas-74-brightgreen)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-lightgrey)
 
 **Libreria de Python que comprueba que cada accion de navegador hizo lo que pretendia
@@ -225,6 +225,7 @@ python -m playwright install chromium
 | `hover(target)` | Que el menu se desplego de verdad; se repliega al deshacer |
 | `upload(target, path)` | Que el fichero quedo en ese campo; se vacia al deshacer |
 | `drag_to(source, dest)` | Que se movio *ese* elemento; se arrastra de vuelta al deshacer |
+| `watch(intent)` | Bloque `async with` que juzga lo que hizo otro, sin intervenir |
 | `settle()` | Espera a que la pagina deje de moverse |
 
 Todas devuelven un `Result` con el veredicto, el motivo legible, el diff completo, los
@@ -253,6 +254,24 @@ Observado:
 ```
 
 Los valores sensibles tampoco aparecen aqui.
+
+### Auditar a otro sin intervenir
+
+Cuando el que actua no eres tu —un agente ajeno, una automatizacion que no controlas—
+no puedes deshacer lo que haga, pero si puedes dejar por escrito lo que hizo:
+
+```python
+async with ap.watch("el carrito suma una camiseta") as visto:
+    await agente_ajeno.actuar()
+
+if not visto.ok:
+    print(visto.explain())
+```
+
+No se actua, no se deshace y no se lanza nada. Y como no hay un elemento objetivo al que
+atribuir el efecto, **la intencion declarada es lo unico que puede decidir**: sin ella lo
+normal es un veredicto ambiguo, que es lo honesto — se vio que la pagina cambio, no que
+cambiara lo que tocaba.
 
 ### Trazas de una sesion entera
 
@@ -407,7 +426,7 @@ convertirse en un veredicto inventado.
 
 ### v0.3 — adopcion
 - [ ] Integracion con `browser-use` como capa de verificacion
-- [ ] Modo *observador*: verificar sin deshacer, para auditar un agente ajeno
+- [x] Modo observador con `watch()`: verificar sin deshacer, para auditar un agente ajeno
 - [ ] Banco de pruebas reproducible con tasa de fallos detectados
 - [ ] Publicacion en PyPI
 

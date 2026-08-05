@@ -202,6 +202,29 @@ def explain(
     return "\n".join(lineas)
 
 
+@dataclass(slots=True)
+class Observation:
+    """Lo que se vio hacer a otro, dentro de un bloque `watch`.
+
+    No es inmutable como el resto: se entrega al abrir el bloque y se rellena al
+    cerrarlo, que es cuando se sabe lo que paso.
+    """
+
+    spec: ActionSpec
+    result: Result | None = None
+
+    @property
+    def ok(self) -> bool:
+        """True si lo observado coincidio con lo que se esperaba."""
+        return self.result is not None and self.result.ok
+
+    def explain(self) -> str:
+        """Informe de lo observado, o un aviso si el bloque aun no ha terminado."""
+        if self.result is None:
+            return "todavia no se ha salido del bloque de observacion"
+        return self.result.explain()
+
+
 @dataclass(frozen=True, slots=True)
 class Result:
     """Lo que devuelve cada accion verificada."""

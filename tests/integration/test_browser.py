@@ -130,6 +130,36 @@ async def test_lo_que_pasa_dentro_de_un_iframe_se_ve(
     assert "preparado" in result.diff.describe()
 
 
+async def test_el_modo_observador_juzga_lo_que_hizo_otro(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Auditar sin intervenir: no se actua, no se deshace y no se lanza nada."""
+    await page.goto(fixture_url("honest.html"))
+    ap = ActionPrufe(page)
+
+    async with ap.watch("el carrito suma una camiseta") as visto:
+        # Aqui actuaria un agente ajeno; se simula con Playwright a pelo.
+        await page.get_by_role("button", name="Anadir Camiseta M").click()
+
+    assert visto.ok
+    assert "Camiseta M" in visto.explain()
+    assert await page.locator("#carrito li").count() == 1, "no se deshizo nada"
+
+
+async def test_el_observador_no_da_por_bueno_lo_que_no_esperaba(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """El agente ajeno anade otra cosa: se ve, y no se aprueba."""
+    await page.goto(fixture_url("honest.html"))
+    ap = ActionPrufe(page)
+
+    async with ap.watch("el carrito suma una camiseta") as visto:
+        await page.get_by_role("button", name="Anadir Pantalon L").click()
+
+    assert not visto.ok
+    assert "Pantalon L" in visto.explain()
+
+
 async def test_dos_marcos_con_el_mismo_nombre_no_se_confunden(
     page: Page, fixture_url: Callable[[str], str]
 ) -> None:

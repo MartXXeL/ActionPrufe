@@ -14,6 +14,7 @@ no es el que se creia.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -25,10 +26,10 @@ from .errors import ActionPrufeError, UndoFailed, VerificationFailed
 from .judge import judge
 from .settling import DEFAULT_QUIET_MS, DEFAULT_TIMEOUT_MS, wait_for_effect, wait_until_settled
 from .snapshot import describe_element, probe
-from .types import ActionSpec, Diff, Judgement, Result, Snapshot, Verdict
+from .types import ActionSpec, Diff, Judgement, Observation, Result, Snapshot, Verdict
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
-    from collections.abc import Awaitable, Callable
+    from collections.abc import AsyncIterator, Awaitable, Callable
 
     from playwright.async_api import Locator, Page
 
@@ -178,6 +179,45 @@ class ActionPrufe:
             await destination.drag_to(source)
 
         return await self._run("drag", source, intent=intent, act=act, inverse=inverse)
+
+    @asynccontextmanager
+    async def watch(self, intent: str | None = None) -> AsyncIterator[Observation]:
+        """Observa lo que hace otro sin intervenir.
+
+        Para auditar un agente ajeno: no se actua, no se deshace y no se lanza nada. Se
+        mira lo que la pagina hizo entre la entrada y la salida del bloque, y se deja el
+        veredicto por escrito.
+
+        Sin un elemento objetivo no hay a quien atribuir el efecto, asi que **la
+        intencion declarada es lo unico que puede decidir**. Sin ella, lo normal es un
+        veredicto ambiguo, y eso es honesto: se vio que la pagina cambio, no que
+        cambiara lo que tocaba.
+
+        Args:
+            intent: que se esperaba que ocurriera, en lenguaje natural.
+
+        Yields:
+            La `Observation`, cuyo `result` queda relleno al salir del bloque.
+
+        Example:
+            >>> async with ap.watch("el carrito suma una camiseta") as visto:
+            ...     await agente_ajeno.actuar()
+            >>> print(visto.result.explain())
+        """
+        antes = await self.settle()
+        spec = ActionSpec(kind="watch", target=None, target_states=frozenset(), intent=intent)
+        observacion = Observation(spec=spec)
+        baseline = await probe(self._page)
+
+        yield observacion
+
+        despues = await wait_for_effect(
+            self._page, baseline, quiet_ms=self._quiet_ms, timeout_ms=self._timeout_ms
+        )
+        cambios = diffing.compute(antes, despues)
+        verdict = await self._adjudicate(spec, cambios, judge(spec, cambios, antes, despues))
+        self._trace(spec, verdict, cambios, attempt=1)
+        observacion.result = Result(spec=spec, judgement=verdict, diff=cambios, attempts=1)
 
     async def settle(self) -> Snapshot:
         """Espera a que la pagina deje de moverse y devuelve su estado."""

@@ -20,12 +20,14 @@ reintenta; y si no puede deshacerlo, aborta en vez de seguir.
 from .ai_judge import AIJudge, GeminiJudge, build_prompt, read_verdict
 from .errors import ActionPrufeError, IrreversibleAction, UndoFailed, VerificationFailed
 from .types import (
+    REDACTED,
     ActionSpec,
     Change,
     Diff,
     Judgement,
     Node,
     NodeKey,
+    Observation,
     Result,
     Snapshot,
     Verdict,
@@ -42,8 +44,10 @@ __all__ = [
     "GeminiJudge",
     "IrreversibleAction",
     "Judgement",
+    "REDACTED",
     "Node",
     "NodeKey",
+    "Observation",
     "Result",
     "Snapshot",
     "UndoFailed",

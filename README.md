@@ -45,8 +45,13 @@ que se creia.
 
 ```bash
 pip install -e ".[dev]" && python -m playwright install chromium
-python examples/demo.py
+
+python examples/demo.py          # rapido, sin ventana
+python examples/demo.py --ver    # abre el navegador y va despacio, para mirarlo
 ```
+
+Con `--ver` se ve en pantalla lo que cuenta: el producto equivocado entrando en el
+carrito, y saliendo solo cuando la verificacion lo detecta.
 
 El mismo clic, dos veces, sobre una pagina que recicla los nodos de su lista:
 

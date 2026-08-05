@@ -1,6 +1,7 @@
 """Demostracion en 30 segundos: el mismo clic, con y sin verificacion.
 
-    python examples/demo.py
+    python examples/demo.py          # rapido, sin ventana
+    python examples/demo.py --ver    # abre el navegador y va despacio, para mirarlo
 
 Abre la pagina de prueba que recicla los nodos de su lista —el fallo real que se ve en
 cualquier web hecha con React cuando la lista se redibuja entre que localizas un boton y
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import pathlib
+import sys
 
 from playwright.async_api import Page, async_playwright
 
@@ -37,10 +39,16 @@ async def carrito(page: Page) -> list[str]:
     return [t.strip() for t in await page.locator("#carrito li").all_inner_texts()]
 
 
-async def main() -> None:
-    """Ejecuta las dos versiones del mismo clic."""
+async def main(ver: bool = False) -> None:
+    """Ejecuta las dos versiones del mismo clic.
+
+    Args:
+        ver: abre un navegador visible y va despacio, para poder mirarlo.
+    """
     async with async_playwright() as pw:
-        navegador = await pw.chromium.launch()
+        # `slow_mo` solo cuando se mira: en modo normal no hay nadie delante y solo
+        # servria para que la demo tardase quince veces mas.
+        navegador = await pw.chromium.launch(headless=not ver, slow_mo=700 if ver else 0)
 
         titulo("1. Playwright a secas")
         page = await (await navegador.new_context()).new_page()
@@ -67,9 +75,13 @@ async def main() -> None:
         print(f"Carrito:   {await carrito(page)}")
         print("           <- se deshizo lo que se metio mal, y se paro a tiempo")
 
+        if ver:
+            print("\n(se cierra en 5 segundos)")
+            await asyncio.sleep(5)
+
         await navegador.close()
         print()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(ver="--ver" in sys.argv))

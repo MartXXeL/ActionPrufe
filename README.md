@@ -198,6 +198,7 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 - [x] Pruebas de integracion con navegador real
 - [x] CI en GitHub Actions, con unitarias e integracion en trabajos separados
 - [x] Comprobacion de tipos estricta con mypy, tambien sobre las pruebas
+- [x] Empaquetado: `py.typed`, licencia, clasificadores y enlaces del proyecto
 - [ ] Pagina de prueba con overlay que se queda los clics
 - [ ] Pagina de prueba con confirmacion modal intermedia
 
@@ -216,4 +217,7 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 
 ## Licencia
 
-MIT.
+MIT — ver [LICENSE](LICENSE).
+
+El paquete incluye `py.typed`, asi que quien lo instale hereda los tipos sin necesidad
+de stubs aparte.

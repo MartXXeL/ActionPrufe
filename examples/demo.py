@@ -19,7 +19,7 @@ import pathlib
 
 from playwright.async_api import Page, async_playwright
 
-from actionprufe import ActionPrufe, ActionPrufeError
+from actionprufe import ActionPrufe, ActionPrufeError, VerificationFailed
 
 PAGINA = (
     pathlib.Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "virtualized.html"
@@ -60,7 +60,8 @@ async def main() -> None:
             await ap.click(page.get_by_role("button", name=BOTON))
         except ActionPrufeError as error:
             print(f"Resultado: {type(error).__name__}")
-            print(f"           {error}")
+            informe = error.explain() if isinstance(error, VerificationFailed) else str(error)
+            print("\n".join(f"           {linea}" for linea in informe.splitlines()))
         else:  # pragma: no cover - solo si la pagina de prueba dejara de fallar
             print("Resultado: correcto (la pagina de prueba ya no falla)")
         print(f"Carrito:   {await carrito(page)}")

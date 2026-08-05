@@ -8,7 +8,7 @@ Los dos ultimos dejan la pagina en un estado sucio y no deben reintentarse a cie
 
 from __future__ import annotations
 
-from .types import Diff, Judgement
+from .types import ActionSpec, Diff, Judgement, explain
 
 
 class ActionPrufeError(Exception):
@@ -18,11 +18,28 @@ class ActionPrufeError(Exception):
 class VerificationFailed(ActionPrufeError):
     """La accion produjo un efecto distinto del pretendido y no se pudo corregir."""
 
-    def __init__(self, judgement: Judgement, diff: Diff, attempts: int) -> None:
+    def __init__(
+        self,
+        judgement: Judgement,
+        diff: Diff,
+        attempts: int,
+        spec: ActionSpec | None = None,
+    ) -> None:
         self.judgement = judgement
         self.diff = diff
         self.attempts = attempts
+        self.spec = spec
         super().__init__(f"{judgement.reason} (tras {attempts} intento/s)")
+
+    def explain(self) -> str:
+        """Informe completo: que se pidio, que cambio en la pagina y que se decidio.
+
+        El mensaje de la excepcion cabe en una linea de log a proposito; esto es lo que
+        se mira cuando esa linea no basta.
+        """
+        if self.spec is None:
+            return f"{self}\n\nObservado:\n{self.diff.describe()}"
+        return explain(self.spec, self.judgement, self.diff, self.attempts)
 
 
 class IrreversibleAction(ActionPrufeError):

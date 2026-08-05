@@ -12,6 +12,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+REDACTED = "[redactado]"
+"""Marcador que sustituye al contenido de un campo sensible.
+
+Vive aqui, en el modulo que no depende de ningun otro, porque lo necesitan tanto quien
+lee la pagina como quien publica lo leido: el navegador para tapar antes de cruzar, y
+los informes, los motivos y el prompt para no destapar despues.
+"""
+
 
 class Verdict(StrEnum):
     """Resultado de contrastar el efecto observado con el pretendido."""
@@ -163,6 +171,37 @@ class Judgement:
     """True si el veredicto lo desempato el arbitro de IA."""
 
 
+def explain(
+    spec: ActionSpec,
+    judgement: Judgement,
+    diff: Diff,
+    attempts: int = 1,
+    undone: int = 0,
+) -> str:
+    """Informe legible de una accion verificada.
+
+    El motivo de una linea sirve para un log, pero cuando algo falla de verdad hace falta
+    ver las cuatro cosas juntas: que se pidio, que se pretendia, que cambio en la pagina
+    y que se decidio. Reconstruir eso a mano desde el `Result` es justo el trabajo que
+    nadie hace a las tres de la manana.
+    """
+    lineas = [
+        f"Accion:    {spec.kind} sobre {spec.target or 'objetivo desconocido'}",
+    ]
+    if spec.payload is not None:
+        lineas.append(f"Valor:     {REDACTED if spec.sensitive else spec.payload!r}")
+    lineas += [
+        f"Intencion: {spec.intent or '(no declarada)'}",
+        f"Veredicto: {judgement.verdict.value.upper()} — {judgement.reason}",
+        f"Intentos:  {attempts}" + (f", {undone} deshecho/s" if undone else ""),
+    ]
+    if judgement.escalated:
+        lineas.append("           (lo desempato el arbitro de IA)")
+    lineas.append("Observado:")
+    lineas += [f"  {linea}" for linea in diff.describe().splitlines()]
+    return "\n".join(lineas)
+
+
 @dataclass(frozen=True, slots=True)
 class Result:
     """Lo que devuelve cada accion verificada."""
@@ -178,3 +217,7 @@ class Result:
     def ok(self) -> bool:
         """True si el efecto observado fue el pretendido."""
         return self.judgement.verdict is Verdict.MATCH
+
+    def explain(self) -> str:
+        """Informe legible de lo que se pidio, lo que paso y que se decidio."""
+        return explain(self.spec, self.judgement, self.diff, self.attempts, self.undone)

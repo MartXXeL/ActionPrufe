@@ -276,7 +276,7 @@ class ActionPrufe:
             if attempt == self._max_attempts:
                 # Se agotaron los intentos, pero el efecto equivocado sigue ahi: se
                 # retira igualmente antes de rendirse, para no dejar la pagina sucia.
-                failure = VerificationFailed(verdict, changes, attempt)
+                failure = VerificationFailed(verdict, changes, attempt, spec)
                 try:
                     await self._revert(spec, changes, target, before, inverse)
                 except ActionPrufeError as undo_error:

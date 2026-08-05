@@ -64,8 +64,14 @@ Carrito:   ['Pantalon L Quitar Pantalon L']
 ----------------------------------------------------------------------
 Pido:      pulsar «Anadir Camiseta M»
 Resultado: VerificationFailed
-           el efecto corresponde a button[Anadir Pantalon L] en lista,
-           no al objetivo button[Anadir Camiseta M] en lista (tras 2 intento/s)
+           Accion:    click sobre button[Anadir Camiseta M] en lista
+           Intencion: (no declarada)
+           Veredicto: MISMATCH — el efecto corresponde a
+                      button[Anadir Pantalon L] en lista, no al objetivo
+           Intentos:  2
+           Observado:
+             aparecio listitem[Pantalon L ...] en carrito
+             aparecio button[Quitar Pantalon L] en carrito
 Carrito:   []
            <- se deshizo lo que se metio mal, y se paro a tiempo
 ```
@@ -201,6 +207,29 @@ Todas devuelven un `Result` con el veredicto, el motivo legible, el diff complet
 intentos y cuantas veces hubo que deshacer. Los fallos se lanzan como
 `VerificationFailed`, `UndoFailed` o `IrreversibleAction`.
 
+### Cuando el motivo de una linea no basta
+
+El mensaje de la excepcion cabe en un log a proposito. `explain()` da el informe entero,
+y lo tienen tanto el `Result` como el `VerificationFailed`:
+
+```python
+try:
+    await ap.click(boton)
+except VerificationFailed as error:
+    print(error.explain())
+```
+
+```
+Accion:    click sobre button[Anadir Camiseta M] en lista
+Intencion: el carrito suma una camiseta talla M
+Veredicto: MISMATCH — el efecto corresponde a button[Anadir Pantalon L] en lista
+Intentos:  2, 1 deshecho/s
+Observado:
+  aparecio listitem[Pantalon L] en carrito
+```
+
+Los valores sensibles tampoco aparecen aqui.
+
 ### Cuando declarar la intencion
 
 Casi nunca hace falta: si el efecto lleva el nombre del elemento —clicas «Anadir
@@ -314,8 +343,8 @@ convertirse en un veredicto inventado.
 - [x] Acciones `upload` y `drag_to`, con inversa declarada por la propia accion
 - [ ] Deducir solos los limites de lista, para que arrastrar entre dos `<ul>` se vea sin
       tener que nombrarlos a mano
-- [ ] Trazas: exportar cada accion con su pre-estado, post-estado, diff y veredicto
-- [ ] Diagnostico legible cuando falla (que se esperaba, que paso, que se deshizo)
+- [x] Diagnostico legible con `explain()`, en el `Result` y en el error
+- [ ] Trazas a disco: volcar cada accion con su pre-estado y su post-estado completos
 - [ ] Soporte de `iframe` y de shadow DOM
 - [ ] Cache del snapshot para no re-evaluar la pagina entera en paginas grandes
 

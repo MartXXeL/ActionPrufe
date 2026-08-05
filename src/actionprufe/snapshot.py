@@ -10,7 +10,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from .types import Node, NodeKey, Snapshot
+from .types import REDACTED, Node, NodeKey, Snapshot
+
+__all__ = ["EVAL_TIMEOUT_S", "REDACTED", "capture", "describe_element", "fingerprint"]
 
 EVAL_TIMEOUT_S = 10.0
 """Tope de cada evaluacion en la pagina.
@@ -23,15 +25,6 @@ a aplicarse nunca, porque su reloj solo avanza entre evaluaciones.
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
     from playwright.async_api import Locator, Page
-
-REDACTED = "[redactado]"
-"""Marcador que sustituye al contenido de un campo sensible.
-
-Nunca sale de la pagina el valor real de una contrasena ni de un medio de pago. Importa
-mas de lo que parece: el texto observado acaba en los mensajes de error, en los logs de
-quien usa la libreria y, cuando el veredicto es ambiguo, en el prompt que se envia a un
-modelo de terceros. Que un campo cambio se sigue detectando; que valor tomo, no.
-"""
 
 _HELPERS_JS = (
     r"""

@@ -213,6 +213,20 @@ pip install -e ".[ai]"           # con arbitro de Gemini
 python -m playwright install chromium
 ```
 
+### Publicar una version
+
+El flujo esta listo y se dispara solo al empujar una etiqueta `v*`. Antes de la primera
+vez hay que dar de alta el **publicador confiable** en la cuenta de PyPI (proyecto
+`actionprufe`, repositorio `MartXXeL/ActionPrufe`, flujo `release.yml`, entorno `pypi`);
+asi no hace falta guardar ningun token en los secretos del repositorio.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+Publicar es irreversible —una version de PyPI no se puede reemplazar—, por eso el flujo
+pasa antes formato, lint, tipos, las pruebas con navegador y `twine check`.
+
 ## API
 
 | Metodo | Que verifica |
@@ -428,7 +442,9 @@ convertirse en un veredicto inventado.
 - [ ] Integracion con `browser-use` como capa de verificacion
 - [x] Modo observador con `watch()`: verificar sin deshacer, para auditar un agente ajeno
 - [ ] Banco de pruebas reproducible con tasa de fallos detectados
-- [ ] Publicacion en PyPI
+- [x] Flujo de publicacion listo (`release.yml`), con publicacion confiable y sin tokens
+- [ ] Publicar la 0.1.0 en PyPI — requiere dar de alta el publicador confiable en la
+      cuenta y empujar la etiqueta `v0.1.0`
 
 ## Contribuir
 

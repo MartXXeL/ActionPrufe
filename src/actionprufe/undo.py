@@ -116,6 +116,12 @@ async def revert(page: Page, spec: ActionSpec, diff: Diff, locator: Locator) -> 
         await locator.click()
         return "se volvio a conmutar el objetivo"
 
+    if spec.kind == "hover":
+        # Apartar el raton es la inversa exacta de pasarlo por encima: el menu que se
+        # desplego al entrar se repliega al salir, sin tocar nada mas.
+        await page.mouse.move(0, 0)
+        return "se aparto el raton del objetivo"
+
     control = _removal_control(diff)
     if control is not None:
         candidato = _locator_for(page, control.key)

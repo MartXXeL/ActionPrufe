@@ -88,7 +88,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.mypy]
-files = ["src", "tests"]
+files = ["src", "tests", "examples"]
 python_version = "3.12"
 strict = true
 # El JS devuelve diccionarios sin forma declarada y Playwright tipa algunos roles como

@@ -37,6 +37,37 @@ Si el efecto no corresponde al objetivo, ActionPrufe **lo deshace y reintenta**.
 puede deshacerlo, **aborta** en vez de seguir operando sobre un estado que ya no es el
 que se creia.
 
+## Verlo en 30 segundos
+
+```bash
+pip install -e ".[dev]" && python -m playwright install chromium
+python examples/demo.py
+```
+
+El mismo clic, dos veces, sobre una pagina que recicla los nodos de su lista:
+
+```
+----------------------------------------------------------------------
+1. Playwright a secas
+----------------------------------------------------------------------
+Pido:      pulsar «Anadir Camiseta M»
+Resultado: el clic no da ningun error
+Carrito:   ['Pantalon L Quitar Pantalon L']
+           <- nadie se entera de que esto esta mal
+
+----------------------------------------------------------------------
+2. Con ActionPrufe
+----------------------------------------------------------------------
+Pido:      pulsar «Anadir Camiseta M»
+Resultado: VerificationFailed
+           el efecto corresponde a button[Anadir Pantalon L] en lista,
+           no al objetivo button[Anadir Camiseta M] en lista (tras 2 intento/s)
+Carrito:   []
+           <- se deshizo lo que se metio mal, y se paro a tiempo
+```
+
+No hace falta clave de ninguna API: ese veredicto sale del diff, sin IA.
+
 ## Como funciona
 
 ```
@@ -156,6 +187,8 @@ python -m playwright install chromium
 | `fill(target, value, intent=...)` | Que el valor acabo en ese campo y no en otro |
 | `check` / `uncheck(target)` | Que se conmuto ese elemento y **solo** ese |
 | `select_option(target, label)` | Que la opcion elegida es la pedida |
+| `press(target, key)` | Que la tecla produjo el efecto esperado (Enter que envia) |
+| `hover(target)` | Que el menu se desplego de verdad; se repliega al deshacer |
 | `settle()` | Espera a que la pagina deje de moverse |
 
 Todas devuelven un `Result` con el veredicto, el motivo legible, el diff completo, los
@@ -260,7 +293,9 @@ convertirse en un veredicto inventado.
       quien llama, contenido acotado y control de retirada verificado
 
 ### v0.2 — cobertura real
-- [ ] Acciones pendientes: `hover`, `press`, `drag_and_drop`, `upload`
+- [x] Demo ejecutable que ensena el fallo con y sin verificacion
+- [x] Acciones `press` y `hover`, con el raton apartandose como inversa
+- [ ] Acciones pendientes: `drag_and_drop` y `upload`
 - [ ] Trazas: exportar cada accion con su pre-estado, post-estado, diff y veredicto
 - [ ] Diagnostico legible cuando falla (que se esperaba, que paso, que se deshizo)
 - [ ] Soporte de `iframe` y de shadow DOM

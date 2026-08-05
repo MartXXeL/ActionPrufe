@@ -79,6 +79,22 @@ async def test_un_campo_sin_marcar_se_protege_si_quien_llama_lo_declara(
     assert await page.get_by_label("Numero de cuenta").input_value() == iban
 
 
+async def test_el_hover_que_despliega_un_menu_se_verifica(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Un menu que no se despliega es un fallo silencioso: el hover nunca da error."""
+    await page.goto(fixture_url("honest.html"))
+    ap = ActionPrufe(page)
+
+    result = await ap.hover(
+        page.get_by_role("button", name="Mas opciones"),
+        intent="se despliega el menu con el historial y las facturas",
+    )
+
+    assert result.ok
+    assert "historial" in result.diff.describe().lower()
+
+
 async def test_el_efecto_tardio_no_se_toma_por_ausencia_de_efecto(
     page: Page, fixture_url: Callable[[str], str]
 ) -> None:

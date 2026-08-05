@@ -114,6 +114,30 @@ class ActionPrufe:
             "select", target, intent=intent, act=act, payload=label, sensitive=sensitive
         )
 
+    async def press(self, target: Locator, key: str, *, intent: str | None = None) -> Result:
+        """Pulsa una tecla sobre un elemento y comprueba el efecto.
+
+        Es la accion de los formularios que se envian con Enter, donde el efecto casi
+        nunca lleva el nombre del campo: suele hacer falta declarar la intencion.
+        """
+
+        async def act() -> None:
+            await target.press(key)
+
+        return await self._run("press", target, intent=intent, act=act, payload=key)
+
+    async def hover(self, target: Locator, *, intent: str | None = None) -> Result:
+        """Pasa el raton por encima y comprueba que aparecio lo que tenia que aparecer.
+
+        Un menu que no se despliega es un fallo silencioso de manual: el `hover` no da
+        error nunca, y el clic siguiente falla en otro sitio y por otro motivo.
+        """
+
+        async def act() -> None:
+            await target.hover()
+
+        return await self._run("hover", target, intent=intent, act=act)
+
     async def settle(self) -> Snapshot:
         """Espera a que la pagina deje de moverse y devuelve su estado."""
         return await wait_until_settled(

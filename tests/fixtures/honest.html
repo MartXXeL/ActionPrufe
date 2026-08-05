@@ -7,6 +7,14 @@
 <main>
   <h1>Tienda</h1>
 
+  <nav data-ap-region="menu" aria-label="Menu">
+    <button id="mas">Mas opciones</button>
+    <ul id="submenu" hidden>
+      <li>Ver historial de pedidos</li>
+      <li>Descargar facturas</li>
+    </ul>
+  </nav>
+
   <section data-ap-region="lista" aria-label="Catalogo">
     <ul id="catalogo"></ul>
   </section>
@@ -43,6 +51,11 @@
 </main>
 
 <script>
+  const mas = document.getElementById("mas");
+  const submenu = document.getElementById("submenu");
+  mas.addEventListener("mouseenter", () => { submenu.hidden = false; });
+  mas.addEventListener("mouseleave", () => { submenu.hidden = true; });
+
   const PRODUCTOS = ["Camiseta M", "Pantalon L", "Sudadera S"];
   const catalogo = document.getElementById("catalogo");
   const carrito = document.getElementById("carrito");

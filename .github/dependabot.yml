@@ -1,0 +1,19 @@
+version: 2
+
+updates:
+  # Playwright es la unica dependencia obligatoria y la que mas se mueve; enterarse
+  # tarde de un cambio suyo significa enterarse por una prueba de navegador rota.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "Actualizar"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Actualizar"

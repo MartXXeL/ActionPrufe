@@ -1,0 +1,38 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Los lunes por la manana: las reglas de CodeQL se actualizan aunque el codigo no
+    # cambie, y un fallo nuevo sobre codigo viejo es exactamente lo que interesa ver.
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analisis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          # `security-and-quality` incluye tambien las reglas de mantenibilidad, que en
+          # una libreria que juzga estados ajenos importan tanto como las de seguridad.
+          queries: security-and-quality
+
+      - name: Analizar
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:python

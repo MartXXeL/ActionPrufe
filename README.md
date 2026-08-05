@@ -1,6 +1,7 @@
 # ActionPrufe — libreria de verificacion de acciones de navegador
 
 [![Tests](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml/badge.svg)](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml)
+[![CodeQL](https://github.com/MartXXeL/ActionPrufe/actions/workflows/codeql.yml/badge.svg)](https://github.com/MartXXeL/ActionPrufe/actions/workflows/codeql.yml)
 ![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue)
 ![Playwright](https://img.shields.io/badge/playwright-1.49+-2EAD33)
 ![Tipado](https://img.shields.io/badge/mypy-strict-2a6db2)
@@ -318,11 +319,23 @@ convertirse en un veredicto inventado.
 - [ ] Soporte de `iframe` y de shadow DOM
 - [ ] Cache del snapshot para no re-evaluar la pagina entera en paginas grandes
 
+- [x] Estandares de comunidad: guia de contribucion, politica de seguridad, plantillas
+      de incidencia y de pull request, Dependabot y analisis con CodeQL
+
 ### v0.3 — adopcion
 - [ ] Integracion con `browser-use` como capa de verificacion
 - [ ] Modo *observador*: verificar sin deshacer, para auditar un agente ajeno
 - [ ] Banco de pruebas reproducible con tasa de fallos detectados
 - [ ] Publicacion en PyPI
+
+## Contribuir
+
+Lee [CONTRIBUTING.md](CONTRIBUTING.md). Lo mas valioso que puedes aportar es **una forma
+nueva de que una accion salga mal sin dar error**, con una pagina minima que la simule.
+
+Si encuentras una via por la que se escapen datos sensibles o por la que una pagina
+hostil provoque algo que no deberia, no abras una incidencia publica:
+[SECURITY.md](SECURITY.md).
 
 ## Licencia
 

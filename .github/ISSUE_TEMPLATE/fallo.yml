@@ -1,0 +1,42 @@
+name: Fallo
+description: Un veredicto equivocado, un efecto que no se detecta o algo que se rompe
+labels: [fallo]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Lo mas util con diferencia es una pagina HTML minima que reproduzca el caso.
+        Las de `tests/fixtures/` son el formato: un fichero suelto, sin dependencias.
+
+  - type: textarea
+    id: que-esperabas
+    attributes:
+      label: Que esperabas que pasara
+      placeholder: El clic sobre «Anadir Camiseta M» deberia darse por bueno.
+    validations:
+      required: true
+
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: Que paso
+      description: Pega el veredicto y el motivo completos, o la excepcion.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: pagina
+    attributes:
+      label: Pagina que lo reproduce
+      description: HTML minimo. Si no puedes compartirla, describe su estructura.
+      render: html
+
+  - type: input
+    id: versiones
+    attributes:
+      label: Versiones
+      placeholder: actionprufe 0.1.0 · playwright 1.49.1 · python 3.12 · Windows 11
+    validations:
+      required: true

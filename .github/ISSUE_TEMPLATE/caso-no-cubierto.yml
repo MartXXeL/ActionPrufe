@@ -1,0 +1,35 @@
+name: Caso no cubierto
+description: Una forma de que una accion salga mal que la libreria todavia no detecta
+labels: [caso]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Este es el tipo de aportacion mas valioso para el proyecto: una manera nueva de
+        que un clic «funcione» y aun asi haga lo que no era.
+
+  - type: textarea
+    id: el-caso
+    attributes:
+      label: Como sale mal la accion
+      placeholder: |
+        Al pulsar el boton, un panel que se abre encima desplaza la lista y el clic
+        siguiente cae en otra fila.
+    validations:
+      required: true
+
+  - type: textarea
+    id: por-que-pasa-desapercibido
+    attributes:
+      label: Por que no da error hoy
+      description: Que hace que Playwright, o la propia verificacion, lo den por bueno.
+    validations:
+      required: true
+
+  - type: textarea
+    id: pagina
+    attributes:
+      label: Pagina que lo simula
+      description: Si la tienes, aunque sea a medias.
+      render: html

@@ -135,6 +135,27 @@ Todas devuelven un `Result` con el veredicto, el motivo legible, el diff complet
 intentos y cuantas veces hubo que deshacer. Los fallos se lanzan como
 `VerificationFailed`, `UndoFailed` o `IrreversibleAction`.
 
+### Cuando declarar la intencion
+
+Casi nunca hace falta: si el efecto lleva el nombre del elemento —clicas «Anadir
+Camiseta M» y en el carrito aparece «Camiseta M»— se atribuye solo. La intencion gana
+su sitio cuando el nombre del boton no se parece a su efecto, que es justo lo que pasa
+en las confirmaciones:
+
+```python
+# "Confirmar borrado" no se parece a "Cuenta eliminada", y ningun vecino explica el
+# efecto: sin intencion esto es AMBIGUOUS, y la politica por defecto no lo aprueba.
+await ap.click(
+    page.get_by_role("button", name="Confirmar borrado"),
+    intent="la cuenta queda eliminada",
+)
+```
+
+En ese ejemplo, ademas, no hay inversa posible: un borrado confirmado no tiene valor
+previo que reescribir ni control de retirada. Si la verificacion falla ahi, lo que sale
+es `IrreversibleAction` encadenada al `VerificationFailed` — la pagina cambio, no se
+pudo comprobar y no se puede deshacer.
+
 ### Ajustes
 
 ```python
@@ -179,7 +200,13 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 |---|---|
 | `virtualized.html` | La lista rota sus datos en `pointerdown`, asi que el clic acaba en el vecino |
 | `late.html` | El efecto tarda 700 ms, como una respuesta de red lenta |
+| `confirm.html` | La accion destructiva no ocurre hasta un segundo clic en un dialogo |
+| `overlay.html` | Un reproductor flotante se cruza por delante y se queda los clics |
 | `honest.html` | Todo correcto, para comprobar que no se inventan fallos |
+
+`overlay.html` marca la frontera con Playwright: un elemento tapado ya lo detecta su
+comprobacion de accionabilidad, asi que ese error se propaga tal cual en vez de
+convertirse en un veredicto inventado.
 
 ## ToDo
 
@@ -199,8 +226,9 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 - [x] CI en GitHub Actions, con unitarias e integracion en trabajos separados
 - [x] Comprobacion de tipos estricta con mypy, tambien sobre las pruebas
 - [x] Empaquetado: `py.typed`, licencia, clasificadores y enlaces del proyecto
-- [ ] Pagina de prueba con overlay que se queda los clics
-- [ ] Pagina de prueba con confirmacion modal intermedia
+- [x] Pagina de prueba con overlay que se queda los clics
+- [x] Pagina de prueba con confirmacion modal intermedia
+- [x] El texto corrido de los parrafos cuenta como estado observable
 
 ### v0.2 — cobertura real
 - [ ] Acciones pendientes: `hover`, `press`, `drag_and_drop`, `upload`

@@ -6,8 +6,9 @@ from collections.abc import Callable
 
 import pytest
 from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 
-from actionprufe import ActionPrufe, VerificationFailed
+from actionprufe import ActionPrufe, IrreversibleAction, VerificationFailed
 from actionprufe.snapshot import REDACTED
 
 pytestmark = pytest.mark.browser
@@ -88,6 +89,73 @@ async def test_lista_virtualizada_el_clic_acaba_en_el_vecino(
 
     assert "no al objetivo" in str(error.value)
     assert await page.locator("#carrito li").count() == 0, "el carrito debio quedar limpio"
+
+
+async def test_el_reproductor_que_tapa_el_boton_falla_de_forma_limpia(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """La frontera con Playwright: lo que ya cubre el, se propaga tal cual.
+
+    Un elemento tapado lo detecta la comprobacion de accionabilidad de Playwright, que
+    reintenta y acaba lanzando. Lo que se fija aqui es que ese error sale a la superficie
+    y no se convierte en un veredicto inventado ni deja la pagina tocada.
+    """
+    await page.goto(fixture_url("overlay.html"))
+    page.set_default_timeout(1_500)
+    ap = ActionPrufe(page)
+
+    with pytest.raises(PlaywrightTimeout):
+        await ap.click(page.get_by_role("button", name="Reservar Bilbao Madrid"))
+
+    assert await page.locator("#reservas li").count() == 0
+
+
+async def test_confirmacion_intermedia_en_dos_pasos(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Una operacion destructiva no ocurre al primer clic, y eso no es un fallo."""
+    await page.goto(fixture_url("confirm.html"))
+    ap = ActionPrufe(page)
+
+    abrir = await ap.click(page.get_by_role("button", name="Eliminar la cuenta de Martxel"))
+
+    assert abrir.ok, "abrir el dialogo es el efecto correcto de ese clic"
+    assert await page.get_by_role("dialog").is_visible()
+
+    # "Confirmar borrado" no se parece a "Cuenta eliminada" y ningun vecino explica el
+    # efecto, asi que sin declarar la intencion esto se queda en ambiguo.
+    confirmar = await ap.click(
+        page.get_by_role("button", name="Confirmar borrado"),
+        intent="la cuenta queda eliminada",
+    )
+
+    assert confirmar.ok
+    assert await page.get_by_text("Cuenta eliminada").is_visible()
+
+
+async def test_sin_intencion_el_borrado_confirmado_aborta_y_lo_dice(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Lo peor que puede pasar, dicho en voz alta.
+
+    Sin intencion declarada el efecto no se puede atribuir, y la politica por defecto es
+    no aprobarlo. Pero es que ademas un borrado confirmado no tiene inversa: no hay valor
+    previo que reescribir, ni control de retirada, ni historial al que volver. Se lanza
+    `IrreversibleAction` encadenada al fallo de verificacion, que es exactamente lo que
+    quien llama necesita saber: la pagina cambio, no se pudo comprobar y no se puede
+    deshacer.
+    """
+    await page.goto(fixture_url("confirm.html"))
+    ap = ActionPrufe(page, max_attempts=1)
+
+    await ap.click(page.get_by_role("button", name="Eliminar la cuenta de Martxel"))
+
+    with pytest.raises(IrreversibleAction) as error:
+        await ap.click(page.get_by_role("button", name="Confirmar borrado"))
+
+    causa = error.value.__cause__
+    assert isinstance(causa, VerificationFailed)
+    assert "ambiguo rechazado por politica" in str(causa)
 
 
 async def test_sin_verificar_el_fallo_pasa_desapercibido(

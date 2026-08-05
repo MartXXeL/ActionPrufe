@@ -70,6 +70,11 @@ _HELPERS_JS += r"""
       case 'option': return 'option';
       case 'textarea': return 'textbox';
       case 'li': return 'listitem';
+      // El texto corrido tambien es estado observable. Un dialogo suele llevar
+      // aria-label ("Confirmacion") y toda la informacion util —que se va a borrar,
+      // cuanto se va a cobrar— vive en su parrafo. Sin esto se descarta justo lo que
+      // permite atribuir el efecto a la accion.
+      case 'p': return 'paragraph';
       case 'td': return 'cell';
       case 'th': return 'columnheader';
       case 'summary': return 'button';

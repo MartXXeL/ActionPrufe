@@ -1,0 +1,45 @@
+<meta charset="utf-8">
+<title>Accion con confirmacion intermedia</title>
+<!--
+  La accion no ocurre al primer clic: abre un dialogo y espera. Es el patron de
+  cualquier operacion destructiva, y por eso importa que la verificacion no lo
+  confunda con el efecto final.
+
+  El primer clic se atribuye solo, porque el dialogo repite el nombre de lo que
+  se va a borrar. El segundo no: "Confirmar borrado" no se parece a "Cuenta
+  eliminada", y ningun vecino explica el efecto tampoco. Ahi es donde la
+  intencion declarada deja de ser un adorno y decide el veredicto.
+-->
+<main>
+  <h1>Ajustes</h1>
+
+  <section data-ap-region="cuenta" aria-label="Cuenta">
+    <p id="estado">Cuenta de Martxel activa</p>
+    <button id="eliminar">Eliminar la cuenta de Martxel</button>
+  </section>
+
+  <div id="dialogo" role="dialog" aria-label="Confirmacion" hidden>
+    <p>Vas a eliminar la cuenta de Martxel. Esta accion no se puede deshacer.</p>
+    <button id="confirmar">Confirmar borrado</button>
+    <button id="cancelar">Cancelar</button>
+  </div>
+</main>
+
+<script>
+  const dialogo = document.getElementById("dialogo");
+  const estado = document.getElementById("estado");
+
+  document.getElementById("eliminar").addEventListener("click", () => {
+    dialogo.hidden = false;
+  });
+
+  document.getElementById("cancelar").addEventListener("click", () => {
+    dialogo.hidden = true;
+  });
+
+  document.getElementById("confirmar").addEventListener("click", () => {
+    dialogo.hidden = true;
+    estado.textContent = "Cuenta eliminada";
+    document.getElementById("eliminar").remove();
+  });
+</script>

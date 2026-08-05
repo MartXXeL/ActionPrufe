@@ -153,6 +153,45 @@ def test_conmutar_otra_casilla_es_fallo() -> None:
     assert "Newsletter" in verdict.reason
 
 
+def test_un_tercero_que_se_activa_es_fallo_aunque_sea_de_otro_rol() -> None:
+    """Restringir la comprobacion al mismo rol dejaba pasar efectos colaterales reales."""
+    before = snapshot(
+        node("checkbox", "Acepto", "form"),
+        node("switch", "Modo oscuro", "form"),
+    )
+    after = snapshot(
+        node("checkbox", "Acepto", "form", states=["checked"]),
+        node("switch", "Modo oscuro", "form", states=["pressed"]),
+    )
+    verdict = judge(
+        spec("check", name="Acepto", role="checkbox", region="form"),
+        diffing.compute(before, after),
+        before,
+        after,
+    )
+    assert verdict.verdict is Verdict.MISMATCH
+    assert "Modo oscuro" in verdict.reason
+
+
+def test_el_radio_que_se_apaga_al_elegir_otro_no_es_efecto_colateral() -> None:
+    """En un grupo excluyente, que el hermano pierda el estado es lo normal, no un fallo."""
+    before = snapshot(
+        node("radio", "Envio estandar", "form", states=["checked"]),
+        node("radio", "Envio urgente", "form"),
+    )
+    after = snapshot(
+        node("radio", "Envio estandar", "form"),
+        node("radio", "Envio urgente", "form", states=["checked"]),
+    )
+    verdict = judge(
+        spec("check", name="Envio urgente", role="radio", region="form"),
+        diffing.compute(before, after),
+        before,
+        after,
+    )
+    assert verdict.verdict is Verdict.MATCH
+
+
 def test_conmutar_de_mas_tambien_es_fallo() -> None:
     """Marcar la correcta no basta si de paso se marca otra."""
     before = snapshot(

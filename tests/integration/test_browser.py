@@ -8,6 +8,7 @@ import pytest
 from playwright.async_api import Page
 
 from actionproof import ActionProof, VerificationFailed
+from actionproof.snapshot import REDACTED
 
 pytestmark = pytest.mark.browser
 
@@ -39,6 +40,22 @@ async def test_fill_y_conmutacion_en_pagina_honesta(
 
     assert await page.get_by_label("Cupon").input_value() == "VERANO25"
     assert await page.get_by_label("Quiero el boletin").is_checked() is False
+
+
+async def test_una_contrasena_real_no_sale_de_la_pagina(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Contra un navegador de verdad: el valor se verifica sin llegar a leerse."""
+    await page.goto(fixture_url("honest.html"))
+    ap = ActionProof(page)
+
+    result = await ap.fill(page.get_by_label("Contrasena"), "hunter2-secreta")
+
+    assert result.ok
+    assert "hunter2-secreta" not in result.diff.describe()
+    assert "hunter2-secreta" not in result.judgement.reason
+    assert REDACTED in result.diff.describe()
+    assert await page.get_by_label("Contrasena").input_value() == "hunter2-secreta"
 
 
 async def test_el_efecto_tardio_no_se_toma_por_ausencia_de_efecto(

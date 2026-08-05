@@ -11,12 +11,19 @@ Dos reglas que no se negocian:
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from .snapshot import REDACTED
 from .types import ActionSpec, Diff, Judgement, Verdict
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
     from collections.abc import Callable
+
+_log = logging.getLogger(__name__)
+
+DEFAULT_AI_TIMEOUT_S = 20.0
 
 _PROMPT = """Eres un verificador de automatizacion web. No razonas en voz alta.
 
@@ -46,7 +53,8 @@ class AIJudge(Protocol):
 
 def build_prompt(spec: ActionSpec, diff: Diff) -> str:
     """Construye el prompt del arbitro. Publico para poder probarlo sin red."""
-    payload_line = f"valor o opcion: {spec.payload!r}\n  " if spec.payload else ""
+    payload = REDACTED if spec.sensitive else spec.payload
+    payload_line = f"valor o opcion: {payload!r}\n  " if payload else ""
     return _PROMPT.format(
         kind=spec.kind,
         target=spec.target or "desconocido",
@@ -72,23 +80,31 @@ class GeminiJudge:
         api_key: str,
         *,
         model: str = "gemini-2.5-flash",
+        timeout_s: float = DEFAULT_AI_TIMEOUT_S,
         serializer: Callable[[ActionSpec, Diff], str] = build_prompt,
     ) -> None:
         from google import genai  # importacion diferida: la libreria es opcional
 
         self._client = genai.Client(api_key=api_key)
         self._model = model
+        self._timeout_s = timeout_s
         self._serialize = serializer
 
     async def adjudicate(self, spec: ActionSpec, diff: Diff) -> Judgement:
         """Pregunta al modelo y devuelve un veredicto que nunca es ambiguo."""
         prompt = self._serialize(spec, diff)
         try:
-            response = await self._client.aio.models.generate_content(
-                model=self._model, contents=prompt
+            # Sin tope, una llamada colgada bloquea la accion entera: el resto de la
+            # libreria acota todas sus esperas y esta no puede ser la excepcion.
+            response = await asyncio.wait_for(
+                self._client.aio.models.generate_content(model=self._model, contents=prompt),
+                timeout=self._timeout_s,
             )
             approved = read_verdict(getattr(response, "text", None))
         except Exception as exc:  # noqa: BLE001 - cualquier fallo se lee como "no"
+            # El detalle va al log y no al veredicto: el motivo lo lee quien llama y
+            # puede acabar en sitios donde no debe estar el mensaje de un error de red.
+            _log.warning("el arbitro de IA fallo: %s", exc, exc_info=True)
             return Judgement(
                 Verdict.MISMATCH,
                 f"el arbitro de IA no pudo responder ({exc.__class__.__name__}), se asume fallo",

@@ -9,7 +9,42 @@ from __future__ import annotations
 
 from collections import Counter
 
-from .types import Change, Diff, Snapshot
+from .types import Change, Diff, NodeKey, Snapshot
+
+Payload = tuple[str | None, frozenset[str]]
+
+
+def _group(snapshot: Snapshot) -> dict[NodeKey, Counter[Payload]]:
+    """Agrupa los nodos por identidad, contando cuantos comparten cada carga util."""
+    grouped: dict[NodeKey, Counter[Payload]] = {}
+    for node in snapshot.nodes:
+        grouped.setdefault(node.key, Counter())[node.payload] += 1
+    return grouped
+
+
+def _changes_for(key: NodeKey, before: Counter[Payload], after: Counter[Payload]) -> list[Change]:
+    """Diferencias de una sola identidad, respetando cuantos ejemplares hay de cada una.
+
+    El emparejamiento importa. Si de tres filas iguales quedan dos, hay una desaparicion,
+    no tres cambios; y si una de las que quedan ademas muta, hay una desaparicion y un
+    cambio, no dos de cada. Contar por separado las apariciones y las mutaciones, como se
+    hacia antes, duplicaba unas y perdia otras.
+    """
+    # Lo que sobrevive intacto no es ningun cambio.
+    only_before = list((before - after).elements())
+    only_after = list((after - before).elements())
+
+    changes: list[Change] = []
+    paired = min(len(only_before), len(only_after))
+    for index in range(paired):
+        changes.append(
+            Change(kind="changed", key=key, before=only_before[index], after=only_after[index])
+        )
+    for payload in only_before[paired:]:
+        changes.append(Change(kind="disappeared", key=key, before=payload))
+    for payload in only_after[paired:]:
+        changes.append(Change(kind="appeared", key=key, after=payload))
+    return changes
 
 
 def compute(before: Snapshot, after: Snapshot) -> Diff:
@@ -22,31 +57,14 @@ def compute(before: Snapshot, after: Snapshot) -> Diff:
     Returns:
         El `Diff` con las apariciones, desapariciones y mutaciones observadas.
     """
-    before_keys = Counter(n.key for n in before.nodes)
-    after_keys = Counter(n.key for n in after.nodes)
+    by_key_before = _group(before)
+    by_key_after = _group(after)
 
     changes: list[Change] = []
-
-    for key, count in (after_keys - before_keys).items():
-        payloads = [n.payload for n in after.nodes if n.key == key]
-        for payload in payloads[:count]:
-            changes.append(Change(kind="appeared", key=key, after=payload))
-
-    for key, count in (before_keys - after_keys).items():
-        payloads = [n.payload for n in before.nodes if n.key == key]
-        for payload in payloads[:count]:
-            changes.append(Change(kind="disappeared", key=key, before=payload))
-
-    for key in before_keys.keys() & after_keys.keys():
-        old = Counter(n.payload for n in before.nodes if n.key == key)
-        new = Counter(n.payload for n in after.nodes if n.key == key)
-        if old == new:
-            continue
-        gone = list((old - new).elements())
-        arrived = list((new - old).elements())
-        for index, payload in enumerate(arrived):
-            previous = gone[index] if index < len(gone) else None
-            changes.append(Change(kind="changed", key=key, before=previous, after=payload))
+    for key in by_key_before.keys() | by_key_after.keys():
+        changes.extend(
+            _changes_for(key, by_key_before.get(key, Counter()), by_key_after.get(key, Counter()))
+        )
 
     return Diff(
         changes=tuple(changes),

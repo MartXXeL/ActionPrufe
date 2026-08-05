@@ -14,8 +14,35 @@ from .types import Node, NodeKey, Snapshot
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
     from playwright.async_api import Locator, Page
 
-_HELPERS_JS = r"""
+REDACTED = "[redactado]"
+"""Marcador que sustituye al contenido de un campo sensible.
+
+Nunca sale de la pagina el valor real de una contrasena ni de un medio de pago. Importa
+mas de lo que parece: el texto observado acaba en los mensajes de error, en los logs de
+quien usa la libreria y, cuando el veredicto es ambiguo, en el prompt que se envia a un
+modelo de terceros. Que un campo cambio se sigue detectando; que valor tomo, no.
+"""
+
+_HELPERS_JS = (
+    r"""
+  const REDACTED = '"""
+    + REDACTED
+    + r"""';
   const NAME_MAX = 140;
+  const SENSITIVE_AUTOCOMPLETE =
+    /(^|\s)(current-password|new-password|one-time-code|cc-number|cc-csc|cc-exp|cc-name)(\s|$)/i;
+
+  function sensitive(el) {
+    if (el.hasAttribute('data-ap-sensitive')) return true;
+    if (el.tagName === 'INPUT' && (el.getAttribute('type') || '').toLowerCase() === 'password') {
+      return true;
+    }
+    return SENSITIVE_AUTOCOMPLETE.test(el.getAttribute('autocomplete') || '');
+  }
+"""
+)
+
+_HELPERS_JS += r"""
   const LANDMARKS = new Set(['nav', 'main', 'header', 'footer', 'aside', 'form',
                              'section', 'dialog', 'table']);
   const LANDMARK_ROLES = new Set(['navigation', 'main', 'banner', 'contentinfo',
@@ -76,7 +103,12 @@ _HELPERS_JS = r"""
     if (el.tagName === 'IMG') return norm(el.getAttribute('alt'));
     const own = norm(el.innerText || el.textContent);
     if (own) return own;
-    return norm(el.getAttribute('title') || el.getAttribute('placeholder') || el.value);
+    const fallback = norm(el.getAttribute('title') || el.getAttribute('placeholder'));
+    if (fallback) return fallback;
+    // Ultimo recurso: el propio valor. Solo si el campo no es sensible, porque este
+    // texto viaja a los logs y al arbitro de IA.
+    if (sensitive(el)) return '';
+    return norm(el.value);
   }
 
   function regionOf(el) {
@@ -119,7 +151,12 @@ _HELPERS_JS = r"""
       const opt = el.selectedOptions && el.selectedOptions[0];
       return opt ? norm(opt.textContent) : '';
     }
-    if ('value' in el && typeof el.value === 'string') return norm(el.value);
+    if ('value' in el && typeof el.value === 'string') {
+      if (!sensitive(el)) return norm(el.value);
+      // Se conserva la distincion entre vacio y con contenido: basta para saber que el
+      // campo cambio, y es todo lo que se necesita saber.
+      return el.value ? REDACTED : '';
+    }
     return null;
   }
 
@@ -130,6 +167,7 @@ _HELPERS_JS = r"""
       region: regionOf(el),
       value: valueOf(el),
       states: statesOf(el),
+      sensitive: sensitive(el),
     };
   }
 """
@@ -149,7 +187,10 @@ _COLLECT_JS = (
     const name = nameOf(el);
     const value = valueOf(el);
     if (!name && value === null) continue;
-    nodes.push({ role, name, region: regionOf(el), value, states: statesOf(el) });
+    nodes.push({
+      role, name, region: regionOf(el), value,
+      states: statesOf(el), sensitive: sensitive(el),
+    });
   }
 
   const text = (document.body ? document.body.innerText : '').replace(/\s+/g, ' ').trim();
@@ -170,6 +211,7 @@ def _node_from(raw: dict[str, Any]) -> Node:
         key=NodeKey(role=raw["role"], name=raw["name"], region=raw["region"]),
         value=raw["value"],
         states=frozenset(raw["states"]),
+        sensitive=bool(raw.get("sensitive")),
     )
 
 

@@ -115,6 +115,7 @@ class ActionProof:
             target_value=node.value,
             payload=payload,
             intent=intent,
+            sensitive=node.sensitive,
         )
 
     async def _adjudicate(self, spec: ActionSpec, changes: Diff, judgement: Judgement) -> Judgement:

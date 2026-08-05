@@ -7,6 +7,7 @@ no (ver `ai_judge`).
 
 from __future__ import annotations
 
+from .snapshot import REDACTED
 from .text import overlap, relates
 from .types import ActionSpec, Change, Diff, Judgement, Snapshot, Verdict
 
@@ -46,15 +47,22 @@ def _is_toggle_target(spec: ActionSpec) -> bool:
 def _judge_fill(spec: ActionSpec, diff: Diff) -> Judgement:
     """Un `fill` es correcto si el valor final del objetivo es el escrito."""
     expected = spec.payload or ""
+    # Lo que se muestra en el motivo no siempre es lo que se compara: el motivo se
+    # publica en logs y prompts, y el valor de un campo sensible no puede aparecer ahi.
+    shown = REDACTED if spec.sensitive else repr(expected)
     for change in diff.changes:
         if change.kind != "changed" or change.key != spec.target:
             continue
         actual = (change.after or (None, frozenset()))[0] or ""
+        if actual == REDACTED or spec.sensitive:
+            # Campo sensible: su valor no se lee, asi que no hay nada que comparar. Lo
+            # verificable es que cambio el campo correcto, y eso ya consta.
+            return Judgement(Verdict.MATCH, f"el campo {spec.target} cambio (valor no leido)")
         if overlap(expected, actual) >= STRONG_MATCH or actual == expected:
             return Judgement(Verdict.MATCH, f"el campo {spec.target} contiene {actual!r}")
         return Judgement(
             Verdict.MISMATCH,
-            f"se escribio en {spec.target} pero quedo {actual!r} en vez de {expected!r}",
+            f"se escribio en {spec.target} pero quedo {actual!r} en vez de {shown}",
         )
 
     for change in diff.changes:
@@ -70,20 +78,37 @@ def _judge_fill(spec: ActionSpec, diff: Diff) -> Judgement:
     )
 
 
+def _gained_toggle(change: Change) -> frozenset[str]:
+    """Estados de conmutacion que este cambio *gano* (no los que perdio)."""
+    before = change.before[1] if change.before else frozenset()
+    after = change.after[1] if change.after else frozenset()
+    return (after - before) & TOGGLE_STATES
+
+
 def _judge_toggle(spec: ActionSpec, diff: Diff) -> Judgement:
-    """Una conmutacion es correcta si volteo el objetivo y solo el objetivo."""
+    """Una conmutacion es correcta si volteo el objetivo y solo el objetivo.
+
+    Un tercero que *pierde* el estado no cuenta como efecto colateral: es lo que hace un
+    grupo de radios o una lista de seleccion unica cuando se elige otra opcion. Lo que si
+    cuenta es que un tercero lo *gane*, sea cual sea su rol — restringir la comprobacion a
+    elementos del mismo rol que el objetivo dejaba pasar, por ejemplo, un interruptor que
+    se activaba solo al marcar una casilla.
+    """
     target_flip: Change | None = None
     foreign_flips: list[Change] = []
+    foreign_gains: list[Change] = []
 
     for change in diff.changes:
         if not _toggled(change):
             continue
         if change.key == spec.target:
             target_flip = change
-        elif change.key.role == (spec.target.role if spec.target else ""):
-            foreign_flips.append(change)
+            continue
+        foreign_flips.append(change)
+        if _gained_toggle(change):
+            foreign_gains.append(change)
 
-    if target_flip and not foreign_flips:
+    if target_flip and not foreign_gains:
         return Judgement(Verdict.MATCH, target_flip.describe())
 
     if foreign_flips and not target_flip:
@@ -93,10 +118,10 @@ def _judge_toggle(spec: ActionSpec, diff: Diff) -> Judgement:
             f"se conmuto {culprit.key} en vez del objetivo {spec.target}",
         )
 
-    if target_flip and foreign_flips:
+    if target_flip and foreign_gains:
         return Judgement(
             Verdict.MISMATCH,
-            f"ademas del objetivo se conmuto {foreign_flips[0].key}",
+            f"ademas del objetivo se conmuto {foreign_gains[0].key}",
         )
 
     return Judgement(

@@ -95,6 +95,23 @@ volver atras en el historial. Despues se **comprueba que el efecto se retiro**; 
 queda residuo, es `UndoFailed`. Si no hay inversa aplicable, es `IrreversibleAction`.
 En ninguno de los dos casos se continua.
 
+### 6. Lo sensible no sale de la pagina
+
+Verificar exige leer la pagina, y lo leido acaba en los mensajes de error, en los logs
+de quien usa la libreria y —si el veredicto es ambiguo— en el prompt que se envia a un
+tercero. Asi que el contenido de las contrasenas, los campos de pago y todo lo marcado
+con `data-ap-sensitive` se sustituye por `[redactado]` **en el navegador**, antes de
+cruzar a Python.
+
+Tampoco se publica el valor que tu pasas: si el objetivo es sensible, el `value` de tu
+propia llamada a `fill` se redacta igual. La verificacion sigue funcionando —consta que
+cambio el campo correcto y no otro—, simplemente sin leer que se escribio.
+
+```python
+await ap.fill(page.get_by_label("Contrasena"), clave)
+# result.diff.describe() -> "cambio textbox[Contrasena] en form: valor '' -> '[redactado]'"
+```
+
 ## Instalacion
 
 ```bash
@@ -165,7 +182,8 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 - [x] Diff semantico por multiconjunto
 - [x] Juicio deterministico: clic, fill, conmutacion y seleccion
 - [x] Deteccion del vecino que se queda el clic
-- [x] Arbitro de IA opcional con veredicto binario
+- [x] Arbitro de IA opcional con veredicto binario, acotado en tiempo
+- [x] Redaccion de campos sensibles antes de salir del navegador
 - [x] Inversas y verificacion de que el efecto se retiro
 - [x] API publica `ActionProof`
 - [x] Pruebas del nucleo sin navegador

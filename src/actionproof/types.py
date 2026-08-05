@@ -46,6 +46,8 @@ class Node:
     key: NodeKey
     value: str | None
     states: frozenset[str]
+    sensitive: bool = False
+    """True si el contenido del elemento no debe salir de la pagina."""
 
     @property
     def payload(self) -> tuple[str | None, frozenset[str]]:
@@ -142,6 +144,13 @@ class ActionSpec:
 
     intent: str | None = None
     """Intencion declarada por quien llama, en lenguaje natural. Opcional."""
+
+    sensitive: bool = False
+    """True si el objetivo es un campo sensible.
+
+    No basta con redactar lo que se lee de la pagina: el valor que se pidio escribir lo
+    aporta quien llama y tambien acabaria en los motivos y en el prompt del arbitro.
+    """
 
 
 @dataclass(frozen=True, slots=True)

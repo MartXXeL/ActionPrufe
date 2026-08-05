@@ -45,9 +45,24 @@
       <option>Urgente</option>
     </select>
 
+    <label for="adjunto">Justificante</label>
+    <input id="adjunto" name="adjunto" type="file">
+
     <label><input id="condiciones" type="checkbox"> Acepto las condiciones</label>
     <label><input id="boletin" type="checkbox"> Quiero el boletin</label>
   </form>
+
+  <!-- Cada lista lleva su propia region a proposito. Mover un elemento *dentro* de una
+       region no cambia nada observable: su identidad es (rol, nombre, region) y las tres
+       siguen igual. Nombrar el origen y el destino es lo que convierte el arrastre en un
+       cambio visible. La zona de destino necesita ademas alto propio: una lista vacia
+       mide cero y no se puede soltar nada sobre lo que no ocupa espacio. -->
+  <section aria-label="Prioridades">
+    <ul id="pendientes" data-ap-region="pendientes">
+      <li draggable="true" id="tarea">Revisar el pedido de Martxel</li>
+    </ul>
+    <ul id="hechas" data-ap-region="hechas" style="min-height: 60px; border: 1px dashed"></ul>
+  </section>
 </main>
 
 <script>
@@ -55,6 +70,20 @@
   const submenu = document.getElementById("submenu");
   mas.addEventListener("mouseenter", () => { submenu.hidden = false; });
   mas.addEventListener("mouseleave", () => { submenu.hidden = true; });
+
+  // Arrastrar y soltar entre las dos listas, sin librerias.
+  for (const lista of [document.getElementById("pendientes"), document.getElementById("hechas")]) {
+    lista.addEventListener("dragover", (e) => e.preventDefault());
+    lista.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const id = e.dataTransfer.getData("text/plain");
+      const elemento = document.getElementById(id);
+      if (elemento) lista.appendChild(elemento);
+    });
+  }
+  document.getElementById("tarea").addEventListener("dragstart", (e) => {
+    e.dataTransfer.setData("text/plain", e.target.id);
+  });
 
   const PRODUCTOS = ["Camiseta M", "Pantalon L", "Sudadera S"];
   const catalogo = document.getElementById("catalogo");

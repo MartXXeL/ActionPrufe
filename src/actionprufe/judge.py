@@ -228,7 +228,9 @@ def judge(spec: ActionSpec, diff: Diff, before: Snapshot, after: Snapshot) -> Ju
             )
         return Judgement(Verdict.MISMATCH, "la accion no produjo ningun efecto observable")
 
-    if spec.kind == "fill":
+    if spec.kind in {"fill", "upload"}:
+        # Un adjunto es un `fill` con otro nombre: el campo tiene que acabar conteniendo
+        # lo que se le paso, y el navegador antepone una ruta ficticia al nombre.
         base = _judge_fill(spec, diff)
     elif spec.kind in {"check", "uncheck"}:
         base = _judge_toggle(spec, diff)

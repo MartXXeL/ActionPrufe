@@ -15,6 +15,7 @@ no es el que se creia.
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from . import diff as diffing
@@ -138,6 +139,40 @@ class ActionPrufe:
 
         return await self._run("hover", target, intent=intent, act=act)
 
+    async def upload(
+        self, target: Locator, path: str | Path, *, intent: str | None = None
+    ) -> Result:
+        """Adjunta un fichero y comprueba que quedo en ese campo."""
+        fichero = Path(path)
+
+        async def act() -> None:
+            await target.set_input_files(fichero)
+
+        async def inverse() -> None:
+            await target.set_input_files([])
+
+        return await self._run(
+            "upload", target, intent=intent, act=act, payload=fichero.name, inverse=inverse
+        )
+
+    async def drag_to(
+        self, source: Locator, destination: Locator, *, intent: str | None = None
+    ) -> Result:
+        """Arrastra un elemento a otro sitio y comprueba que acabo donde debia.
+
+        La inversa es arrastrarlo de vuelta, que es exacta y no depende de que la pagina
+        ofrezca ningun control. El objetivo que se verifica es el elemento arrastrado:
+        lo que importa es que sea *ese* el que se movio, no otro de la misma lista.
+        """
+
+        async def act() -> None:
+            await source.drag_to(destination)
+
+        async def inverse() -> None:
+            await destination.drag_to(source)
+
+        return await self._run("drag", source, intent=intent, act=act, inverse=inverse)
+
     async def settle(self) -> Snapshot:
         """Espera a que la pagina deje de moverse y devuelve su estado."""
         return await wait_until_settled(
@@ -178,10 +213,23 @@ class ActionPrufe:
         return Judgement(Verdict.MISMATCH, f"ambiguo rechazado por politica: {judgement.reason}")
 
     async def _revert(
-        self, spec: ActionSpec, changes: Diff, target: Locator, before: Snapshot
+        self,
+        spec: ActionSpec,
+        changes: Diff,
+        target: Locator,
+        before: Snapshot,
+        inverse: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
-        """Deshace el efecto y comprueba que de verdad se retiro."""
-        await undo.revert(self._page, spec, changes, target)
+        """Deshace el efecto y comprueba que de verdad se retiro.
+
+        Una inversa declarada por la propia accion siempre gana a las heuristicas de
+        `undo`: arrastrar de vuelta o vaciar el adjunto es exacto, y no depende de que
+        la pagina ofrezca ningun control ni de adivinar nada por el texto.
+        """
+        if inverse is not None:
+            await inverse()
+        else:
+            await undo.revert(self._page, spec, changes, target)
         after_undo = await self.settle()
         left = undo.residue(changes, diffing.compute(before, after_undo))
         if left.changes or left.url_changed:
@@ -199,6 +247,7 @@ class ActionPrufe:
         act: Callable[[], Awaitable[None]],
         payload: str | None = None,
         sensitive: bool = False,
+        inverse: Callable[[], Awaitable[None]] | None = None,
     ) -> Result:
         """Ejecuta el ciclo completo de una accion verificada."""
         before = await self.settle()
@@ -229,12 +278,12 @@ class ActionPrufe:
                 # retira igualmente antes de rendirse, para no dejar la pagina sucia.
                 failure = VerificationFailed(verdict, changes, attempt)
                 try:
-                    await self._revert(spec, changes, target, before)
+                    await self._revert(spec, changes, target, before, inverse)
                 except ActionPrufeError as undo_error:
                     raise undo_error from failure
                 raise failure
 
-            await self._revert(spec, changes, target, before)
+            await self._revert(spec, changes, target, before, inverse)
             undone += 1  # noqa: SIM113 - no es el indice del bucle: solo cuenta los deshechos
             before = await self.settle()
             # El objetivo puede haber mutado al deshacer: se relee antes de reintentar.

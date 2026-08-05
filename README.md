@@ -1,8 +1,11 @@
 # ActionPrufe — libreria de verificacion de acciones de navegador
 
 [![Tests](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml/badge.svg)](https://github.com/MartXXeL/ActionPrufe/actions/workflows/tests.yml)
-![Python](https://img.shields.io/badge/python-3.12+-blue)
-![Playwright](https://img.shields.io/badge/playwright-1.49+-green)
+![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue)
+![Playwright](https://img.shields.io/badge/playwright-1.49+-2EAD33)
+![Tipado](https://img.shields.io/badge/mypy-strict-2a6db2)
+![Estilo](https://img.shields.io/badge/estilo-ruff-d7ff64)
+![Pruebas](https://img.shields.io/badge/pruebas-53-brightgreen)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-lightgrey)
 
 **Libreria de Python que comprueba que cada accion de navegador hizo lo que pretendia
@@ -189,6 +192,8 @@ python -m playwright install chromium
 | `select_option(target, label)` | Que la opcion elegida es la pedida |
 | `press(target, key)` | Que la tecla produjo el efecto esperado (Enter que envia) |
 | `hover(target)` | Que el menu se desplego de verdad; se repliega al deshacer |
+| `upload(target, path)` | Que el fichero quedo en ese campo; se vacia al deshacer |
+| `drag_to(source, dest)` | Que se movio *ese* elemento; se arrastra de vuelta al deshacer |
 | `settle()` | Espera a que la pagina deje de moverse |
 
 Todas devuelven un `Result` con el veredicto, el motivo legible, el diff completo, los
@@ -237,6 +242,16 @@ que zonas importan:
 ```html
 <div data-ap-region="carrito">...</div>
 <span data-ap-watch>Total: 49,90 €</span>
+```
+
+**Mover algo dentro de una misma region es invisible.** La identidad de un elemento es
+`(rol, nombre, region)`, asi que arrastrar una tarea de una lista a otra no cambia nada
+si las dos listas viven en la misma region. Nombra el origen y el destino y el
+movimiento pasa a verse:
+
+```html
+<ul data-ap-region="pendientes">...</ul>
+<ul data-ap-region="hechas">...</ul>
 ```
 
 ## Desarrollo
@@ -295,7 +310,9 @@ convertirse en un veredicto inventado.
 ### v0.2 — cobertura real
 - [x] Demo ejecutable que ensena el fallo con y sin verificacion
 - [x] Acciones `press` y `hover`, con el raton apartandose como inversa
-- [ ] Acciones pendientes: `drag_and_drop` y `upload`
+- [x] Acciones `upload` y `drag_to`, con inversa declarada por la propia accion
+- [ ] Deducir solos los limites de lista, para que arrastrar entre dos `<ul>` se vea sin
+      tener que nombrarlos a mano
 - [ ] Trazas: exportar cada accion con su pre-estado, post-estado, diff y veredicto
 - [ ] Diagnostico legible cuando falla (que se esperaba, que paso, que se deshizo)
 - [ ] Soporte de `iframe` y de shadow DOM

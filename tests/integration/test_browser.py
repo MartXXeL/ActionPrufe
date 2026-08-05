@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from playwright.async_api import Page
@@ -77,6 +78,37 @@ async def test_un_campo_sin_marcar_se_protege_si_quien_llama_lo_declara(
     assert iban not in result.diff.describe()
     assert iban not in result.judgement.reason
     assert await page.get_by_label("Numero de cuenta").input_value() == iban
+
+
+async def test_adjuntar_un_fichero_se_verifica(
+    page: Page, fixture_url: Callable[[str], str], tmp_path: Path
+) -> None:
+    await page.goto(fixture_url("honest.html"))
+    ap = ActionPrufe(page)
+    justificante = tmp_path / "justificante-agosto.pdf"
+    justificante.write_bytes(b"%PDF-1.4\n")
+
+    result = await ap.upload(page.get_by_label("Justificante"), justificante)
+
+    assert result.ok
+    assert "justificante-agosto" in result.diff.describe()
+
+
+async def test_arrastrar_una_tarea_se_verifica(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Lo que se comprueba es que se movio *esa* tarea, no otra de la misma lista."""
+    await page.goto(fixture_url("honest.html"))
+    ap = ActionPrufe(page)
+
+    result = await ap.drag_to(
+        page.get_by_text("Revisar el pedido de Martxel"),
+        page.locator("#hechas"),
+        intent="la tarea pasa a la lista de hechas",
+    )
+
+    assert result.ok
+    assert await page.locator("#hechas li").count() == 1
 
 
 async def test_el_hover_que_despliega_un_menu_se_verifica(

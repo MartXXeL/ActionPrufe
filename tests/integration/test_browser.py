@@ -111,6 +111,24 @@ async def test_arrastrar_una_tarea_se_verifica(
     assert await page.locator("#hechas li").count() == 1
 
 
+async def test_lo_que_pasa_dentro_de_un_iframe_se_ve(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Una pasarela de pago es un documento aparte, y su efecto tambien cuenta."""
+    await page.goto(fixture_url("pasarela.html"))
+    ap = ActionPrufe(page)
+    dentro = page.frame_locator("iframe[name=pago]")
+
+    result = await ap.click(
+        dentro.get_by_role("button", name="Pagar con tarjeta"),
+        intent="queda preparado el pago con tarjeta",
+    )
+
+    assert result.ok
+    assert "iframe:pago/pago" in result.diff.describe(), "la region lleva el marco delante"
+    assert "preparado" in result.diff.describe()
+
+
 async def test_lo_que_vive_dentro_de_un_shadow_root_se_ve(
     page: Page, fixture_url: Callable[[str], str]
 ) -> None:

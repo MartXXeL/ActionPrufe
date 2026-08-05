@@ -1,0 +1,14 @@
+<meta charset="utf-8">
+<title>Pasarela incrustada</title>
+<!--
+  El contenido util vive dentro de un iframe. Es el patron de las pasarelas de pago, de
+  los reproductores y de los formularios de terceros: un documento aparte, con su propio
+  arbol, que no aparece al observar el marco principal.
+
+  Se carga en un iframe con nombre para que la region observada sea estable y legible
+  ("iframe:pago/..."), en vez de depender del nombre del fichero.
+-->
+<main>
+  <h1>Finalizar compra</h1>
+  <iframe name="pago" src="./pasarela-interior.html" width="420" height="220"></iframe>
+</main>

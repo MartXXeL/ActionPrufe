@@ -1,0 +1,13 @@
+<meta charset="utf-8">
+<title>Interior de la pasarela</title>
+<!-- El documento que se carga dentro del iframe de `pasarela.html`. -->
+<section data-ap-region="pago" aria-label="Pago">
+  <p id="estado">Sin metodo de pago</p>
+  <button id="tarjeta">Pagar con tarjeta</button>
+</section>
+
+<script>
+  document.getElementById("tarjeta").addEventListener("click", () => {
+    document.getElementById("estado").textContent = "Pago con tarjeta preparado";
+  });
+</script>

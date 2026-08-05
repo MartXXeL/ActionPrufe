@@ -312,6 +312,7 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 | `late.html` | El efecto tarda 700 ms, como una respuesta de red lenta |
 | `confirm.html` | La accion destructiva no ocurre hasta un segundo clic en un dialogo |
 | `shadow.html` | Todo el componente vive detras de un shadow root |
+| `pasarela.html` | Lo que importa ocurre dentro de un `iframe`, como una pasarela de pago |
 | `overlay.html` | Un reproductor flotante se cruza por delante y se queda los clics |
 | `honest.html` | Todo correcto, para comprobar que no se inventan fallos |
 
@@ -352,7 +353,7 @@ convertirse en un veredicto inventado.
 - [x] Diagnostico legible con `explain()`, en el `Result` y en el error
 - [ ] Trazas a disco: volcar cada accion con su pre-estado y su post-estado completos
 - [x] Shadow DOM: se atraviesan los shadow roots y la region del componente se conserva
-- [ ] Soporte de `iframe`
+- [x] Soporte de `iframe`: se recorren todos los marcos y la region lleva el marco delante
 - [ ] Cache del snapshot para no re-evaluar la pagina entera en paginas grandes
 
 - [x] Estandares de comunidad: guia de contribucion, politica de seguridad, plantillas

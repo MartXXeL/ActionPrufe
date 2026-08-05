@@ -121,6 +121,20 @@ _HELPERS_JS += r"""
     return norm(el.value);
   }
 
+  // El prefijo del marco se calcula aqui, en la pagina, y no al juntar los resultados
+  // en Python: asi la region que se lee de un elemento suelto y la que se lee del
+  // barrido completo salen iguales. Si se prefijara solo en el barrido, el objetivo de
+  // una accion dentro de un iframe no encajaria nunca con lo observado.
+  function framePrefix() {
+    try {
+      if (window.top === window.self) return '';
+    } catch (e) {
+      // Un marco de otro origen ni siquiera deja comparar: es un marco, y basta.
+    }
+    const etiqueta = window.name || location.pathname.split('/').pop() || 'iframe';
+    return 'iframe:' + etiqueta + '/';
+  }
+
   // El padre de la raiz de un shadow tree no es un elemento: es el host, y hay que
   // saltar a el o la region de todo lo que vive dentro de un componente se pierde.
   function parentOf(el) {
@@ -130,20 +144,21 @@ _HELPERS_JS += r"""
   }
 
   function regionOf(el) {
+    const prefijo = framePrefix();
     let p = parentOf(el);
     while (p && p !== document.documentElement) {
       const marked = p.getAttribute('data-ap-region');
-      if (marked) return norm(marked);
+      if (marked) return prefijo + norm(marked);
       const tag = p.tagName.toLowerCase();
       const role = (p.getAttribute('role') || '').toLowerCase();
       if (LANDMARKS.has(tag) || LANDMARK_ROLES.has(role)) {
         const label = norm(p.getAttribute('aria-label') || '');
         const base = role || tag;
-        return label ? base + ':' + label : base;
+        return prefijo + (label ? base + ':' + label : base);
       }
       p = parentOf(p);
     }
-    return 'document';
+    return prefijo + 'document';
   }
 
   function statesOf(el) {
@@ -247,24 +262,45 @@ def _node_from(raw: dict[str, Any]) -> Node:
 async def capture(
     page: Page, *, settled: bool = True, timeout_s: float = EVAL_TIMEOUT_S
 ) -> Snapshot:
-    """Captura el estado semantico actual de la pagina.
+    """Captura el estado semantico actual de la pagina, marcos incluidos.
+
+    Un `iframe` es una pagina aparte y su contenido no aparece al evaluar en el marco
+    principal. Sin recorrerlos, cualquier accion dentro de un pasarela de pago, de un
+    reproductor o de un formulario incrustado se declara sin efecto.
 
     Args:
         page: pagina de Playwright de la que leer el estado.
         settled: si la pagina se considera estabilizada en el momento de capturar.
-        timeout_s: tope de la evaluacion en la pagina.
+        timeout_s: tope de la evaluacion en cada marco.
 
     Returns:
         El `Snapshot` correspondiente.
 
     Raises:
-        TimeoutError: si la pagina no devuelve el estado a tiempo.
+        TimeoutError: si algun marco no devuelve el estado a tiempo.
     """
-    raw: dict[str, Any] = await asyncio.wait_for(page.evaluate(_COLLECT_JS), timeout=timeout_s)
+    nodes: list[Node] = []
+    digests: list[str] = []
+
+    for frame in page.frames:
+        try:
+            raw: dict[str, Any] = await asyncio.wait_for(
+                frame.evaluate(_COLLECT_JS), timeout=timeout_s
+            )
+        except TimeoutError:
+            raise
+        except Exception:  # noqa: BLE001 - un marco que se va no invalida la lectura
+            # Los marcos se destruyen y se recrean solos mientras se navega, y los de
+            # otro origen pueden negarse a ejecutar. Ninguna de las dos cosas es motivo
+            # para tirar la observacion del resto de la pagina.
+            continue
+        nodes.extend(_node_from(n) for n in raw["nodes"])
+        digests.append(raw["textDigest"])
+
     return Snapshot(
-        url=raw["url"],
-        nodes=tuple(_node_from(n) for n in raw["nodes"]),
-        text_digest=raw["textDigest"],
+        url=page.url,
+        nodes=tuple(nodes),
+        text_digest="|".join(digests),
         settled=settled,
     )
 

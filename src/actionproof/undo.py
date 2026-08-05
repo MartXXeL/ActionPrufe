@@ -1,0 +1,130 @@
+"""Deshacer una accion cuyo efecto no fue el pretendido.
+
+El orden de las estrategias no es arbitrario: primero las inversas exactas (reescribir
+el valor previo, volver a conmutar), luego las del navegador (volver atras) y solo al
+final la busqueda de un control de retirada en la propia pagina. Si ninguna aplica se
+lanza `IrreversibleAction` en vez de continuar: dejar la pagina sucia y seguir es
+peor que parar.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING
+
+from .errors import IrreversibleAction
+from .types import ActionSpec, Change, Diff, NodeKey
+
+if TYPE_CHECKING:  # pragma: no cover - solo para tipado
+    from playwright.async_api import Locator, Page
+
+_REMOVAL_RE = re.compile(
+    r"\b(quitar|eliminar|borrar|retirar|deseleccionar|descartar|cancelar|cerrar|deshacer|"
+    r"remove|delete|discard|dismiss|clear|close|undo)\b|^[x×✕✖✗]$",
+    re.IGNORECASE,
+)
+
+_PLAYWRIGHT_ROLES = frozenset(
+    {
+        "alert",
+        "button",
+        "cell",
+        "checkbox",
+        "columnheader",
+        "combobox",
+        "dialog",
+        "heading",
+        "img",
+        "link",
+        "listitem",
+        "menuitem",
+        "option",
+        "radio",
+        "row",
+        "switch",
+        "tab",
+        "textbox",
+    }
+)
+
+
+def _locator_for(page: Page, key: NodeKey) -> Locator:
+    """Construye un localizador a partir de la identidad semantica de un nodo."""
+    if key.role in _PLAYWRIGHT_ROLES and key.name:
+        return page.get_by_role(key.role, name=key.name, exact=True).first  # type: ignore[arg-type]
+    return page.get_by_text(key.name, exact=True).first
+
+
+def _removal_control(diff: Diff) -> Change | None:
+    """Busca entre lo que aparecio un control que sirva para retirar el efecto."""
+    for change in diff.of_kind("appeared"):
+        if change.key.role in {"button", "link"} and _REMOVAL_RE.search(change.key.name):
+            return change
+    return None
+
+
+async def revert(page: Page, spec: ActionSpec, diff: Diff, locator: Locator) -> str:
+    """Intenta devolver la pagina al estado previo a la accion.
+
+    Args:
+        page: pagina sobre la que se actuo.
+        spec: descripcion de la accion a deshacer, con el estado previo del objetivo.
+        diff: efectos observados que hay que retirar.
+        locator: el localizador original del objetivo.
+
+    Returns:
+        Una descripcion de la estrategia empleada.
+
+    Raises:
+        IrreversibleAction: si no se conoce ninguna inversa aplicable.
+    """
+    if spec.kind == "fill":
+        await locator.fill(spec.target_value or "")
+        return f"se reescribio el valor previo {spec.target_value!r}"
+
+    if spec.kind == "select" and spec.target_value:
+        await locator.select_option(label=spec.target_value)
+        return f"se restauro la opcion previa {spec.target_value!r}"
+
+    if spec.kind in {"check", "uncheck"} or (
+        spec.target is not None and spec.target.role in {"checkbox", "radio", "switch", "option"}
+    ):
+        await locator.click()
+        return "se volvio a conmutar el objetivo"
+
+    control = _removal_control(diff)
+    if control is not None:
+        await _locator_for(page, control.key).click()
+        return f"se uso el control de retirada {control.key}"
+
+    if diff.url_changed:
+        await page.go_back()
+        return "se volvio atras en el historial"
+
+    if spec.target_states & {"checked", "selected", "pressed"}:
+        await locator.click()
+        return "se volvio a conmutar el objetivo"
+
+    raise IrreversibleAction(
+        f"no hay inversa conocida para {spec.kind} sobre {spec.target}; "
+        f"efectos sin deshacer:\n{diff.describe()}"
+    )
+
+
+def residue(original: Diff, current: Diff) -> Diff:
+    """Que parte del efecto original sigue presente tras intentar deshacerlo.
+
+    Args:
+        original: los efectos que produjo la accion equivocada.
+        current: la diferencia entre el estado previo y el estado tras deshacer.
+
+    Returns:
+        Un `Diff` con los cambios del original que no se han retirado.
+    """
+    originals = {(c.kind, c.key) for c in original.changes if c.kind in {"appeared", "changed"}}
+    remaining = tuple(c for c in current.changes if (c.kind, c.key) in originals)
+    return Diff(
+        changes=remaining,
+        url_changed=current.url_changed and original.url_changed,
+        text_changed=False,
+    )

@@ -145,20 +145,28 @@ _HELPERS_JS += r"""
 
   function regionOf(el) {
     const prefijo = framePrefix();
+    // La lista mas cercana se anota como sufijo en vez de cortar la busqueda. Asi
+    // mover un elemento de una lista a otra dentro del mismo area se ve como lo que
+    // es —un cambio— sin que la lista se coma la region que declaro el autor.
+    let lista = '';
     let p = parentOf(el);
     while (p && p !== document.documentElement) {
-      const marked = p.getAttribute('data-ap-region');
-      if (marked) return prefijo + norm(marked);
       const tag = p.tagName.toLowerCase();
+      if (!lista && (tag === 'ul' || tag === 'ol')) {
+        const suya = norm(p.getAttribute('aria-label') || p.getAttribute('id') || '');
+        if (suya) lista = '/lista:' + suya;
+      }
+      const marked = p.getAttribute('data-ap-region');
+      if (marked) return prefijo + norm(marked) + lista;
       const role = (p.getAttribute('role') || '').toLowerCase();
       if (LANDMARKS.has(tag) || LANDMARK_ROLES.has(role)) {
         const label = norm(p.getAttribute('aria-label') || '');
         const base = role || tag;
-        return prefijo + (label ? base + ':' + label : base);
+        return prefijo + (label ? base + ':' + label : base) + lista;
       }
       p = parentOf(p);
     }
-    return prefijo + 'document';
+    return prefijo + 'document' + lista;
   }
 
   function statesOf(el) {

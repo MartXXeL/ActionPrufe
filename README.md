@@ -279,15 +279,20 @@ que zonas importan:
 <span data-ap-watch>Total: 49,90 €</span>
 ```
 
-**Mover algo dentro de una misma region es invisible.** La identidad de un elemento es
-`(rol, nombre, region)`, asi que arrastrar una tarea de una lista a otra no cambia nada
-si las dos listas viven en la misma region. Nombra el origen y el destino y el
-movimiento pasa a verse:
+**Las listas se distinguen solas.** La identidad de un elemento es `(rol, nombre,
+region)`, asi que mover algo dentro de una misma region no seria ningun cambio. Para que
+arrastrar una tarea de una lista a otra se vea, la lista mas cercana se anade como
+sufijo cuando tiene `id` o `aria-label` — sin comerse la region que declaraste tu:
 
 ```html
-<ul data-ap-region="pendientes">...</ul>
-<ul data-ap-region="hechas">...</ul>
+<section data-ap-region="prioridades">
+  <ul id="pendientes">...</ul>   <!-- region: prioridades/lista:pendientes -->
+  <ul id="hechas">...</ul>       <!-- region: prioridades/lista:hechas    -->
+</section>
 ```
+
+Si tus listas no tienen ni `id` ni `aria-label`, marcalas con `data-ap-region` o el
+movimiento entre ellas seguira siendo invisible.
 
 ## Desarrollo
 
@@ -348,7 +353,7 @@ convertirse en un veredicto inventado.
 - [x] Demo ejecutable que ensena el fallo con y sin verificacion
 - [x] Acciones `press` y `hover`, con el raton apartandose como inversa
 - [x] Acciones `upload` y `drag_to`, con inversa declarada por la propia accion
-- [ ] Deducir solos los limites de lista, para que arrastrar entre dos `<ul>` se vea sin
+- [x] Limites de lista deducidos solos, para que arrastrar entre dos `<ul>` se vea sin
       tener que nombrarlos a mano
 - [x] Diagnostico legible con `explain()`, en el `Result` y en el error
 - [ ] Trazas a disco: volcar cada accion con su pre-estado y su post-estado completos

@@ -52,16 +52,15 @@
     <label><input id="boletin" type="checkbox"> Quiero el boletin</label>
   </form>
 
-  <!-- Cada lista lleva su propia region a proposito. Mover un elemento *dentro* de una
-       region no cambia nada observable: su identidad es (rol, nombre, region) y las tres
-       siguen igual. Nombrar el origen y el destino es lo que convierte el arrastre en un
-       cambio visible. La zona de destino necesita ademas alto propio: una lista vacia
-       mide cero y no se puede soltar nada sobre lo que no ocupa espacio. -->
+  <!-- Las dos listas viven en la misma area y no llevan `data-ap-region`: su `id` basta
+       para distinguirlas, asi que mover una tarea de una a otra se ve solo. La zona de
+       destino si necesita alto propio: una lista vacia mide cero y no se puede soltar
+       nada sobre lo que no ocupa espacio. -->
   <section aria-label="Prioridades">
-    <ul id="pendientes" data-ap-region="pendientes">
+    <ul id="pendientes">
       <li draggable="true" id="tarea">Revisar el pedido de Martxel</li>
     </ul>
-    <ul id="hechas" data-ap-region="hechas" style="min-height: 60px; border: 1px dashed"></ul>
+    <ul id="hechas" style="min-height: 60px; border: 1px dashed"></ul>
   </section>
 </main>
 

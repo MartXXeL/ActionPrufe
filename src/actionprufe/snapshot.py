@@ -121,8 +121,16 @@ _HELPERS_JS += r"""
     return norm(el.value);
   }
 
+  // El padre de la raiz de un shadow tree no es un elemento: es el host, y hay que
+  // saltar a el o la region de todo lo que vive dentro de un componente se pierde.
+  function parentOf(el) {
+    if (el.parentElement) return el.parentElement;
+    const root = el.getRootNode();
+    return root && root.host ? root.host : null;
+  }
+
   function regionOf(el) {
-    let p = el.parentElement;
+    let p = parentOf(el);
     while (p && p !== document.documentElement) {
       const marked = p.getAttribute('data-ap-region');
       if (marked) return norm(marked);
@@ -133,7 +141,7 @@ _HELPERS_JS += r"""
         const base = role || tag;
         return label ? base + ':' + label : base;
       }
-      p = p.parentElement;
+      p = parentOf(p);
     }
     return 'document';
   }
@@ -188,7 +196,18 @@ _COLLECT_JS = (
     + r"""
   const LIMIT = 4000;
   const nodes = [];
-  const all = document.body ? document.body.querySelectorAll('*') : [];
+
+  // querySelectorAll no atraviesa los shadow roots, y detras de ellos vive buena parte
+  // de la web moderna: sin esto, un componente entero es invisible y cualquier accion
+  // sobre el se declara "sin efecto".
+  function* recorrer(raiz) {
+    for (const el of raiz.querySelectorAll('*')) {
+      yield el;
+      if (el.shadowRoot) yield* recorrer(el.shadowRoot);
+    }
+  }
+
+  const all = document.body ? recorrer(document.body) : [];
   for (const el of all) {
     if (nodes.length >= LIMIT) break;
     const role = roleOf(el);

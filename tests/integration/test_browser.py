@@ -111,6 +111,24 @@ async def test_arrastrar_una_tarea_se_verifica(
     assert await page.locator("#hechas li").count() == 1
 
 
+async def test_lo_que_vive_dentro_de_un_shadow_root_se_ve(
+    page: Page, fixture_url: Callable[[str], str]
+) -> None:
+    """Playwright atraviesa la frontera para localizar; la verificacion tambien debe.
+
+    Si no, el clic funciona y es la comprobacion la que se equivoca: no observa nada,
+    declara que no hubo efecto y aborta una operacion que iba perfectamente.
+    """
+    await page.goto(fixture_url("shadow.html"))
+    ap = ActionPrufe(page)
+
+    result = await ap.click(page.get_by_role("button", name="Anadir Camiseta M"))
+
+    assert result.ok
+    assert "Camiseta M" in result.diff.describe()
+    assert "carrito" in result.diff.describe(), "la region del componente se conserva"
+
+
 async def test_el_hover_que_despliega_un_menu_se_verifica(
     page: Page, fixture_url: Callable[[str], str]
 ) -> None:

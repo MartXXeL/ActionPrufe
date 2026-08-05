@@ -1,0 +1,37 @@
+<meta charset="utf-8">
+<title>Componente con shadow DOM</title>
+<!--
+  Todo lo que importa vive dentro de un shadow root: el boton, el carrito y el aviso.
+  `querySelectorAll` no atraviesa esa frontera, asi que sin recorrer los shadow roots
+  el componente entero es invisible y cualquier accion sobre el se declara sin efecto
+  — un falso negativo que aborta operaciones correctas.
+
+  Playwright si atraviesa la frontera para localizar, que es lo que hace este caso
+  especialmente traicionero: el clic funciona y la verificacion es la que se equivoca.
+-->
+<main>
+  <h1>Tienda</h1>
+  <tienda-mini></tienda-mini>
+</main>
+
+<script>
+  class TiendaMini extends HTMLElement {
+    connectedCallback() {
+      const raiz = this.attachShadow({ mode: "open" });
+      raiz.innerHTML = `
+        <section data-ap-region="lista" aria-label="Catalogo">
+          <ul><li><button id="anadir">Anadir Camiseta M</button></li></ul>
+        </section>
+        <section data-ap-region="carrito" aria-label="Carrito">
+          <ul id="carrito"></ul>
+        </section>
+      `;
+      raiz.getElementById("anadir").addEventListener("click", () => {
+        const li = document.createElement("li");
+        li.textContent = "Camiseta M";
+        raiz.getElementById("carrito").appendChild(li);
+      });
+    }
+  }
+  customElements.define("tienda-mini", TiendaMini);
+</script>

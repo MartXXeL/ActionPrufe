@@ -251,6 +251,26 @@ Observado:
 
 Los valores sensibles tampoco aparecen aqui.
 
+### Trazas de una sesion entera
+
+Para lo que un informe suelto no alcanza —ver en que paso empezo a torcerse una sesion
+larga, o comparar dos ejecuciones— pasa una carpeta:
+
+```python
+ap = ActionPrufe(page, trace_dir="trazas/")
+```
+
+Escribe un JSON por accion, numerado para que el listado ordene solo:
+
+```
+trazas/0001-click-match.json
+trazas/0002-fill-match.json
+trazas/0003-click-mismatch.json   <- aqui
+```
+
+Pasa por la misma redaccion que todo lo demas: un fichero en disco es tan publicable
+como un log. Y si no se puede escribir, se pierde el registro y **no** la operacion.
+
 ### Cuando declarar la intencion
 
 Casi nunca hace falta: si el efecto lleva el nombre del elemento —clicas «Anadir
@@ -372,7 +392,7 @@ convertirse en un veredicto inventado.
 - [x] Limites de lista deducidos solos, para que arrastrar entre dos `<ul>` se vea sin
       tener que nombrarlos a mano
 - [x] Diagnostico legible con `explain()`, en el `Result` y en el error
-- [ ] Trazas a disco: volcar cada accion con su pre-estado y su post-estado completos
+- [x] Trazas a disco con `trace_dir`: un JSON por accion, redactado y ordenado
 - [x] Shadow DOM: se atraviesan los shadow roots y la region del componente se conserva
 - [x] Soporte de `iframe`: se recorren todos los marcos y la region lleva el marco delante
 - [x] Sondeo barato en los bucles de espera: 15 ms frente a 151 ms de captura completa

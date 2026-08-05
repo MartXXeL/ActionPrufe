@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from . import diff as diffing
-from . import undo
+from . import tracing, undo
 from .ai_judge import AIJudge
 from .errors import ActionPrufeError, UndoFailed, VerificationFailed
 from .judge import judge
@@ -47,6 +47,7 @@ class ActionPrufe:
         max_attempts: int = 2,
         quiet_ms: int = DEFAULT_QUIET_MS,
         timeout_ms: int = DEFAULT_TIMEOUT_MS,
+        trace_dir: str | Path | None = None,
     ) -> None:
         """Configura la verificacion.
 
@@ -60,6 +61,9 @@ class ActionPrufe:
             max_attempts: intentos totales por accion, deshaciendo entre uno y otro.
             quiet_ms: milisegundos de quietud para dar la pagina por estabilizada.
             timeout_ms: tope de espera de estabilizacion.
+            trace_dir: carpeta donde volcar un JSON por accion. Sirve para reconstruir
+                despues una sesion entera y ver en que paso empezo a torcerse. Lo que se
+                escribe pasa por la misma redaccion que todo lo demas.
         """
         self._page = page
         self._ai = ai_judge
@@ -67,6 +71,8 @@ class ActionPrufe:
         self._max_attempts = max(1, max_attempts)
         self._quiet_ms = quiet_ms
         self._timeout_ms = timeout_ms
+        self._trace_dir = Path(trace_dir) if trace_dir is not None else None
+        self._traced = 0
 
     async def click(self, target: Locator, *, intent: str | None = None) -> Result:
         """Hace clic y comprueba que el efecto corresponde a ese elemento."""
@@ -179,6 +185,15 @@ class ActionPrufe:
             self._page, quiet_ms=self._quiet_ms, timeout_ms=self._timeout_ms
         )
 
+    def _trace(self, spec: ActionSpec, verdict: Judgement, changes: Diff, attempt: int) -> None:
+        """Vuelca la accion a disco, si se configuro una carpeta de trazas."""
+        if self._trace_dir is None:
+            return
+        self._traced += 1
+        tracing.write(
+            self._trace_dir, self._traced, tracing.build_record(spec, verdict, changes, attempt)
+        )
+
     async def _describe_target(
         self,
         target: Locator,
@@ -267,6 +282,7 @@ class ActionPrufe:
                 changes = diffing.redact(changes, spec.target)
             verdict = judge(spec, changes, before, after)
             verdict = await self._adjudicate(spec, changes, verdict)
+            self._trace(spec, verdict, changes, attempt)
 
             if verdict.verdict is Verdict.MATCH:
                 return Result(

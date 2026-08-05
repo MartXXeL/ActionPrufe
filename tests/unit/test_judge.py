@@ -1,8 +1,7 @@
-from conftest import node, snapshot
-
 from actionproof import diff as diffing
 from actionproof.judge import judge
 from actionproof.types import ActionSpec, NodeKey, Verdict
+from builders import node, snapshot
 
 
 def spec(

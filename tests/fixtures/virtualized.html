@@ -1,0 +1,72 @@
+<meta charset="utf-8">
+<title>Lista virtualizada que recicla nodos</title>
+<!--
+  Reproduce el fallo que ActionProof existe para detectar.
+
+  La fila se reutiliza: en `pointerdown` la lista rota sus datos, asi que para
+  cuando llega el `click` el boton que se localizo como "Anadir Camiseta M" ya
+  representa otro producto. Playwright no da error — el elemento existia, era
+  visible y se pudo clicar — y el carrito acaba con lo que no se pidio.
+
+  Es exactamente lo que hace React al reciclar nodos de una lista virtualizada
+  cuando el scroll o una actualizacion de datos llega entre localizar y clicar.
+-->
+<main>
+  <h1>Tienda</h1>
+
+  <section data-ap-region="lista" aria-label="Catalogo">
+    <ul id="catalogo"></ul>
+  </section>
+
+  <section data-ap-region="carrito" aria-label="Carrito">
+    <h2>Carrito</h2>
+    <ul id="carrito"></ul>
+  </section>
+</main>
+
+<script>
+  const PRODUCTOS = ["Camiseta M", "Pantalon L", "Sudadera S"];
+  let desplazamiento = 0;
+
+  const catalogo = document.getElementById("catalogo");
+  const carrito = document.getElementById("carrito");
+
+  // Una fila por producto, creadas una sola vez: son los nodos que se reciclan.
+  const filas = PRODUCTOS.map(() => {
+    const li = document.createElement("li");
+    const boton = document.createElement("button");
+    li.appendChild(boton);
+    catalogo.appendChild(li);
+    return boton;
+  });
+
+  function pintar() {
+    filas.forEach((boton, i) => {
+      const producto = PRODUCTOS[(i + desplazamiento) % PRODUCTOS.length];
+      boton.textContent = "Anadir " + producto;
+      boton.dataset.producto = producto;
+    });
+  }
+
+  function anadir(producto) {
+    const li = document.createElement("li");
+    li.textContent = producto + " ";
+    const quitar = document.createElement("button");
+    quitar.textContent = "Quitar " + producto;
+    quitar.addEventListener("click", () => li.remove());
+    li.appendChild(quitar);
+    carrito.appendChild(li);
+  }
+
+  // El sabotaje: los datos rotan entre que se apunta y que se suelta el clic.
+  catalogo.addEventListener("pointerdown", () => {
+    desplazamiento = (desplazamiento + 1) % PRODUCTOS.length;
+    pintar();
+  });
+
+  filas.forEach((boton) => {
+    boton.addEventListener("click", () => anadir(boton.dataset.producto));
+  });
+
+  pintar();
+</script>

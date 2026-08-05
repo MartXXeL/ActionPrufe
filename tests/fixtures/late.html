@@ -1,0 +1,32 @@
+<meta charset="utf-8">
+<title>Efecto que llega tarde</title>
+<!--
+  El efecto tarda 700 ms en aparecer, como una peticion de red lenta.
+
+  Sin esperar a que la pagina se asiente, la lectura posterior al clic sale
+  vacia y la accion se declararia fallida cuando en realidad iba bien. Es el
+  falso negativo mas caro: aborta operaciones correctas.
+-->
+<main>
+  <h1>Reservas</h1>
+
+  <section data-ap-region="lista" aria-label="Vuelos">
+    <ul>
+      <li><button id="reservar">Reservar Bilbao Madrid</button></li>
+    </ul>
+  </section>
+
+  <section data-ap-region="reservas" aria-label="Mis reservas">
+    <ul id="reservas"></ul>
+  </section>
+</main>
+
+<script>
+  document.getElementById("reservar").addEventListener("click", () => {
+    setTimeout(() => {
+      const li = document.createElement("li");
+      li.textContent = "Bilbao Madrid confirmado";
+      document.getElementById("reservas").appendChild(li);
+    }, 700);
+  });
+</script>

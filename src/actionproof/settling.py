@@ -17,6 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover - solo para tipado
 
 DEFAULT_QUIET_MS = 250
 DEFAULT_TIMEOUT_MS = 5_000
+POLL_MS = 50
 
 
 async def wait_until_settled(
@@ -58,3 +59,41 @@ async def wait_until_settled(
         previous, previous_print = current, current_print
 
     return previous
+
+
+async def wait_for_effect(
+    page: Page,
+    baseline: tuple[str, str, int],
+    *,
+    quiet_ms: int = DEFAULT_QUIET_MS,
+    timeout_ms: int = DEFAULT_TIMEOUT_MS,
+) -> Snapshot:
+    """Espera a que la accion surta efecto, y solo entonces a que la pagina se asiente.
+
+    Esperar unicamente un periodo de quietud no vale despues de actuar: una pagina que
+    todavia no ha empezado a reaccionar esta quieta, y se declararia "sin efecto" a los
+    250 ms una respuesta de red que iba a llegar a los 700. Aqui la conclusion de que no
+    paso nada exige haber agotado el tiempo entero.
+
+    Args:
+        page: pagina de Playwright a observar.
+        baseline: huella del estado justo antes de actuar.
+        quiet_ms: quietud exigida una vez detectado el primer movimiento.
+        timeout_ms: tope total de espera.
+
+    Returns:
+        El `Snapshot` posterior a la accion.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout_ms / 1000
+
+    while loop.time() < deadline:
+        current = await capture(page, settled=False)
+        if fingerprint(current) != baseline:
+            remaining_ms = max(int((deadline - loop.time()) * 1000), quiet_ms)
+            return await wait_until_settled(page, quiet_ms=quiet_ms, timeout_ms=remaining_ms)
+        await asyncio.sleep(POLL_MS / 1000)
+
+    # Se agoto el plazo sin que nada se moviera: aqui "no paso nada" ya es una
+    # conclusion, no una lectura prematura.
+    return await capture(page, settled=True)

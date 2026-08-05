@@ -26,7 +26,9 @@ packages = ["src/actionproof"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration"]
+pythonpath = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_test_loop_scope = "session"
 markers = [
     "browser: pruebas que arrancan un navegador real (mas lentas)",
 ]

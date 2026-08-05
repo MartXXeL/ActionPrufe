@@ -1,0 +1,58 @@
+<meta charset="utf-8">
+<title>Tienda que se comporta</title>
+<!--
+  El caso normal. Sirve para comprobar lo mas importante despues de detectar los
+  fallos: que ActionProof no inventa ninguno cuando todo va bien.
+-->
+<main>
+  <h1>Tienda</h1>
+
+  <section data-ap-region="lista" aria-label="Catalogo">
+    <ul id="catalogo"></ul>
+  </section>
+
+  <section data-ap-region="carrito" aria-label="Carrito">
+    <h2>Carrito</h2>
+    <ul id="carrito"></ul>
+  </section>
+
+  <form data-ap-region="form" aria-label="Pedido">
+    <label for="cupon">Cupon</label>
+    <input id="cupon" name="cupon" type="text">
+
+    <label for="email">Email</label>
+    <input id="email" name="email" type="text">
+
+    <label for="envio">Envio</label>
+    <select id="envio" name="envio">
+      <option>Estandar</option>
+      <option>Urgente</option>
+    </select>
+
+    <label><input id="condiciones" type="checkbox"> Acepto las condiciones</label>
+    <label><input id="boletin" type="checkbox"> Quiero el boletin</label>
+  </form>
+</main>
+
+<script>
+  const PRODUCTOS = ["Camiseta M", "Pantalon L", "Sudadera S"];
+  const catalogo = document.getElementById("catalogo");
+  const carrito = document.getElementById("carrito");
+
+  for (const producto of PRODUCTOS) {
+    const li = document.createElement("li");
+    const boton = document.createElement("button");
+    boton.textContent = "Anadir " + producto;
+    boton.addEventListener("click", () => {
+      const item = document.createElement("li");
+      item.textContent = producto + " ";
+      const quitar = document.createElement("button");
+      quitar.textContent = "Quitar " + producto;
+      quitar.addEventListener("click", () => item.remove());
+      item.appendChild(quitar);
+      carrito.appendChild(item);
+    });
+    li.appendChild(boton);
+    catalogo.appendChild(li);
+  }
+</script>

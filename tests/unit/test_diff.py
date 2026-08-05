@@ -1,6 +1,5 @@
-from conftest import node, snapshot
-
 from actionproof import diff as diffing
+from builders import node, snapshot
 
 
 def test_estado_identico_no_produce_diferencias() -> None:

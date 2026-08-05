@@ -1,4 +1,8 @@
-"""Constructores de estados sinteticos para probar el nucleo sin navegador."""
+"""Constructores de estados sinteticos para probar el nucleo sin navegador.
+
+Viven aqui y no en un `conftest.py` porque hay dos suites con conftest propio y
+pytest los importa a ambos como modulo `conftest`: el segundo tapa al primero.
+"""
 
 from __future__ import annotations
 

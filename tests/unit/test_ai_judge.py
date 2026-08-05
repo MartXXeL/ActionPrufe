@@ -1,9 +1,9 @@
 import pytest
-from conftest import node, snapshot
 
 from actionproof import diff as diffing
 from actionproof.ai_judge import build_prompt, read_verdict
 from actionproof.types import ActionSpec, NodeKey
+from builders import node, snapshot
 
 
 @pytest.mark.parametrize("answer", ["SI", " si ", "Sí", "yes", "SI."])

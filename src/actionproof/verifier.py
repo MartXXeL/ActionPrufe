@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING, Literal
 from . import diff as diffing
 from . import undo
 from .ai_judge import AIJudge
-from .errors import UndoFailed, VerificationFailed
+from .errors import ActionProofError, UndoFailed, VerificationFailed
 from .judge import judge
-from .settling import DEFAULT_QUIET_MS, DEFAULT_TIMEOUT_MS, wait_until_settled
-from .snapshot import describe_element
+from .settling import DEFAULT_QUIET_MS, DEFAULT_TIMEOUT_MS, wait_for_effect, wait_until_settled
+from .snapshot import describe_element, fingerprint
 from .types import ActionSpec, Diff, Judgement, Result, Snapshot, Verdict
 
 if TYPE_CHECKING:  # pragma: no cover - solo para tipado
@@ -155,8 +155,11 @@ class ActionProof:
         undone = 0
 
         for attempt in range(1, self._max_attempts + 1):
+            baseline = fingerprint(before)
             await act()
-            after = await self.settle()
+            after = await wait_for_effect(
+                self._page, baseline, quiet_ms=self._quiet_ms, timeout_ms=self._timeout_ms
+            )
             changes = diffing.compute(before, after)
             verdict = judge(spec, changes, before, after)
             verdict = await self._adjudicate(spec, changes, verdict)
@@ -167,7 +170,14 @@ class ActionProof:
                 )
 
             if attempt == self._max_attempts:
-                raise VerificationFailed(verdict, changes, attempt)
+                # Se agotaron los intentos, pero el efecto equivocado sigue ahi: se
+                # retira igualmente antes de rendirse, para no dejar la pagina sucia.
+                failure = VerificationFailed(verdict, changes, attempt)
+                try:
+                    await self._revert(spec, changes, target, before)
+                except ActionProofError as undo_error:
+                    raise undo_error from failure
+                raise failure
 
             await self._revert(spec, changes, target, before)
             undone += 1  # noqa: SIM113 - no es el indice del bucle: solo cuenta los deshechos

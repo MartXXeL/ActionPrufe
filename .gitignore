@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+test-results/
+*.log
+
+# Herramientas de revision de terceros copiadas en local (ECC, MIT)
+.claude/

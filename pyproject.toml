@@ -1,0 +1,69 @@
+[project]
+name = "actionproof"
+version = "0.1.0"
+description = "Verifica que cada accion de navegador hizo lo que pretendia, y la deshace si no"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "playwright>=1.49",
+]
+
+[project.optional-dependencies]
+ai = ["google-genai>=1.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/actionproof"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration"]
+asyncio_mode = "auto"
+markers = [
+    "browser: pruebas que arrancan un navegador real (mas lentas)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = [".claude", ".venv", "*.md"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # Error
+    "F",     # Pyflakes
+    "I",     # Isort
+    "N",     # PEP8-naming
+    "D",     # Pydocstyle
+    "UP",    # Pyupgrade
+    "ANN",   # Annotations
+    "ASYNC", # Async
+    "B",     # Bugbear
+    "C4",    # Comprehensions
+    "PT",    # Pytest style
+    "SIM",   # Simplify
+    "RET",   # Return
+]
+ignore = [
+    "D100", "D101", "D102", "D103", "D104", "D107",
+    "E501",
+    # Las excepciones se llaman por lo que paso (`VerificationFailed`, `UndoFailed`),
+    # no con sufijo `Error`: se leen mejor en el `except` de quien usa la libreria.
+    "N818",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

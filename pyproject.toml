@@ -15,6 +15,7 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "ruff>=0.9",
+    "mypy>=1.14",
 ]
 
 [build-system]
@@ -69,3 +70,16 @@ convention = "google"
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.mypy]
+files = ["src", "tests"]
+python_version = "3.12"
+strict = true
+# El JS devuelve diccionarios sin forma declarada y Playwright tipa algunos roles como
+# Literal; ambos se aislan en su sitio y no se relajan globalmente.
+warn_unreachable = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["google.*"]
+ignore_missing_imports = true

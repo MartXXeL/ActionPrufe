@@ -161,11 +161,17 @@ que zonas importan:
 ## Desarrollo
 
 ```bash
-ruff check . && ruff format --check .
-pytest                            # todo
-pytest tests/unit                 # nucleo, sin navegador, centesimas
-pytest -m browser                 # solo contra paginas reales
+ruff format --check . && ruff check .   # estilo
+mypy                                    # tipos, en modo estricto
+pytest                                  # todo
+pytest tests/unit                       # nucleo, sin navegador, centesimas
+pytest tests/integration                # solo contra paginas reales
 ```
+
+El CI ejecuta esos mismos pasos en dos trabajos: **`unit`** (formato, lint, tipos y
+nucleo, sin navegador) y **`integration`**, que depende del primero y solo arranca
+Chromium si lo anterior esta en verde. El navegador se cachea por version de Playwright,
+que es lo unico lento del pipeline.
 
 Las paginas de `tests/fixtures/` se portan mal a proposito:
 
@@ -190,7 +196,8 @@ Las paginas de `tests/fixtures/` se portan mal a proposito:
 - [x] Pruebas del nucleo sin navegador
 - [x] Paginas de prueba hostiles (lista virtualizada que recicla nodos, efecto tardio)
 - [x] Pruebas de integracion con navegador real
-- [x] CI en GitHub Actions
+- [x] CI en GitHub Actions, con unitarias e integracion en trabajos separados
+- [x] Comprobacion de tipos estricta con mypy, tambien sobre las pruebas
 - [ ] Pagina de prueba con overlay que se queda los clics
 - [ ] Pagina de prueba con confirmacion modal intermedia
 

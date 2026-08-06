@@ -4,13 +4,16 @@ version = "0.1.0"
 description = "Verifica que cada accion de navegador hizo lo que pretendia, y la deshace si no"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { file = "LICENSE" }
+# Expresion SPDX, no la ruta del fichero: con `{ file = ... }` los metadatos llevan el
+# texto entero de la licencia dentro del campo `License`, y `pip show` y PyPI acaban
+# ensenando veinte lineas donde deberia poner «MIT».
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Martxel Asteinza" }]
 keywords = ["playwright", "browser-automation", "agents", "testing", "verification"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Testing",
